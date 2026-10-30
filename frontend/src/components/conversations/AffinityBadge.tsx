@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { copy } from "@/i18n";
 import { TierHeart } from "@/components/app/TierHeart";
-import { badgeOf, TIERS, type AffinityStatus } from "@/lib/affinity";
+import { badgeOf, TIERS, TIER_RANGES, type AffinityStatus } from "@/lib/affinity";
 import type { AffinityCue } from "@/lib/liveConversation";
 import { cn } from "@/lib/utils";
 import { AffinityDownIcon, AffinityUpIcon, CooldownIcon, GiftIcon } from "@/theme/icons";
@@ -57,12 +57,18 @@ export function AffinityBadge({
           {cue && <CueArrow up={cue.change.up} />}
         </span>
         <span className={cn("truncate tabular-nums", cooling && "text-muted-foreground")}>{badge.text}</span>
+        {badge.kind === "tier" && badge.value != null && (
+          <span className="text-meta tabular-nums text-muted-foreground">{badge.value}</span>
+        )}
       </PopoverTrigger>
       <PopoverContent container={subtree} align="end">
         <div className="flex flex-col gap-0.5">
           <p className="font-medium">{cooling ? t.cooling(name) : t.title(badge.text)}</p>
           <p className="text-muted-foreground">{cooling ? t.coolingNote(badge.text) : t.notes[badge.tier]}</p>
         </div>
+        {badge.kind === "tier" && badge.value != null && (
+          <p className="text-meta text-muted-foreground">{t.valueLabel(badge.value)}</p>
+        )}
         <ol className="flex gap-1" aria-label={t.tiersLabel}>
           {TIERS.map((tier) => {
             const current = !cooling && tier === badge.tier;
@@ -75,7 +81,10 @@ export function AffinityBadge({
                   current ? "bg-foreground text-background" : "bg-muted text-muted-foreground",
                 )}
               >
-                {t.tiers[tier]}
+                <span className="block">{t.tiers[tier]}</span>
+                <span className="block opacity-70">
+                  {TIER_RANGES[tier][0]}–{TIER_RANGES[tier][1]}
+                </span>
               </li>
             );
           })}

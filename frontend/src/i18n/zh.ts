@@ -269,6 +269,8 @@ export const zh = {
       },
       label: (tier: string) => `你们的关系：${tier}`,
       title: (tier: string) => `你们现在的关系：${tier}`,
+      /** 说明里显示的具体好感度数值（0-100）。 */
+      valueLabel: (n: number) => `当前好感度：${n} / 100`,
       cooling: (name: string) => `${name}现在不想说话`,
       coolingNote: (until: string) => `${until} 以后可以再找她。送她一件礼物，她会消气得快一些。`,
       /** 冷却中换掉输入栏的那一行。 */
@@ -283,8 +285,10 @@ export const zh = {
         cooldown: (name: string) => `${name}现在不想说话了`,
         closer: (name: string, tier: string) => `和${name}更近了一步：${tier}`,
         further: (name: string, tier: string) => `${name}和你疏远了一些：${tier}`,
+        veryHappier: (name: string) => `${name}很开心`,
         happier: (name: string) => `${name}有点开心`,
         unhappier: (name: string) => `${name}有点不高兴`,
+        veryUnhappier: (name: string) => `${name}很不高兴`,
         /** 送礼让她解除了冷却。 */
         thawed: (name: string) => `${name}愿意和你说话了`,
       },
@@ -1896,6 +1900,55 @@ export const zh = {
         /** 好感度和礼物关着：光顾什么都不给。 */
         unrewarded: "调一杯给来店的她",
       },
+      group: {
+        name: "群聊",
+        /** 关着时。 */
+        off: "群聊关着",
+        /** 开着时，成员数。 */
+        status: (n: number) => `${n} 位成员`,
+      },
+    },
+    /** 群聊子页（`/play/group`）：偶像们自己聊，用户也是普通一员。 */
+    group: {
+      title: "群聊",
+      hint: "她和其他成员按相关度自己接话，也可能没人接；用户只是普通一员。",
+      on: "群聊开着",
+      off: "群聊关着",
+      members: "成员",
+      /** 成员数。 */
+      status: (n: number) => `${n} 位成员`,
+      raise: "抛个话题",
+      raising: "正在聊……",
+      empty: "还没有聊过，等着谁先开口。",
+      placeholder: "说点什么……",
+      send: "发送",
+      sending: "发送中……",
+      you: "你",
+      failed: "没连上，稍后再试。",
+      /** 开关的说明。 */
+      switchHint: "关掉只是暂停，之前的群聊都留着。",
+      /** 拉群（`/conversation/group`）：选成员、开一个新的群。 */
+      create: "拉群",
+      createTitle: "拉谁进群？",
+      createHint: "选几位成员，拉一个群；群里的偶像会自己找话题聊起来。",
+      creating: "正在拉群……",
+      /** 解散群：关掉、清空成员，历史记录留着。 */
+      dissolve: "解散群",
+      dissolveTitle: "解散这个群？",
+      dissolveDescription: "解散后不会再自动开新话题，群聊记录都留着。",
+      dissolveConfirm: "解散",
+      dissolving: "正在解散……",
+      dissolved: "这个群已经解散了，历史记录还在。",
+      /** 历史记录里两条话题之间的分隔。 */
+      newTopic: "新话题",
+      /** 历史记录为空。 */
+      noHistory: "还没有聊过。",
+      /** 已解散、可以重新拉群。 */
+      regroup: "重新拉群",
+      /** 改群名。 */
+      rename: "改群名",
+      /** 群里有哪些人。 */
+      roster: "群成员",
     },
     /** 周期子页（`/play/cycles`，GLOSSARY.md「周期」「推算」）。 */
     cycles: {

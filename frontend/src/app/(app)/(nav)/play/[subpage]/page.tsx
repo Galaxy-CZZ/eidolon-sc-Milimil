@@ -10,7 +10,7 @@ import { calendarWho } from "@/lib/schedule";
 
 type SearchParams = { [key: string]: string | string[] | undefined };
 
-/** 这个路由画的子页：酒吧有自己的路由（`play/bar`），代码和字体只在那一页加载。 */
+/** 这个路由画的子页：酒吧有自己的路由（`play/bar`），代码和字体只在那一页加载；群聊也是（`play/group`）。 */
 type SharedSubpage = Exclude<PlaySubpage, "bar">;
 
 // 只有这几个子页；不认识的 `/play/<xxx>` 在 proxy 里就换成了 `/play`，到不了这里。

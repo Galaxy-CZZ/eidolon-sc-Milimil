@@ -138,7 +138,42 @@ export function useBarSound(base: string | null) {
     [buffer],
   );
 
-  return useMemo(() => ({ audio, start, play, loop, setVolume }), [audio, start, play, loop, setVolume]);
+  /** 正在放的那句语音（酒馆语音）。 */
+  const saying = useRef<AudioBufferSourceNode | null>(null);
+
+  /** 停掉正在放的那句语音：台词翻页、换行或离开这一页时。 */
+  const stopSay = useCallback(() => {
+    saying.current?.stop();
+    saying.current = null;
+  }, []);
+
+  /** 播放一段现成的音频（酒馆语音的 TTS mp3），走同一个 AudioContext（进门那一下已解锁）。 */
+  const say = useCallback(
+    (blob: Blob) => {
+      if (!context.current && navigator.userActivation?.hasBeenActive) start();
+      const ctx = context.current;
+      if (!ctx) return;
+      void blob
+        .arrayBuffer()
+        .then((data) => ctx.decodeAudioData(data))
+        .then((decoded) => {
+          if (context.current !== ctx) return;
+          stopSay();
+          const source = sourceOf(decoded, false);
+          saying.current = source;
+          source.onended = () => {
+            if (saying.current === source) saying.current = null;
+          };
+        })
+        .catch(() => {});
+    },
+    [start, stopSay],
+  );
+
+  return useMemo(
+    () => ({ audio, start, play, loop, say, stopSay, setVolume }),
+    [audio, start, play, loop, say, stopSay, setVolume],
+  );
 }
 
 export type BarSound = ReturnType<typeof useBarSound>;

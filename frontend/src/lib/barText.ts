@@ -67,8 +67,9 @@ export function wrapText(text: string, width: number, measure: (text: string) =>
   return rows;
 }
 
-/** Characters typed a second (the original's one a frame at 30 frames a second). */
-export const CHARS_PER_SECOND = 30;
+/** Characters typed a second (the original's one a frame at 30 frames a second; slowed to 18 so
+ * her voiced lines are still typing out when the TTS arrives, which hides the synthesis latency). */
+export const CHARS_PER_SECOND = 18;
 
 /** When a page started typing out, and whether a tap finished it at once. */
 export type Typing = { startedAt: number; finished: boolean };

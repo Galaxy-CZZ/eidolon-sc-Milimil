@@ -1,21 +1,33 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useParams, usePathname, useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { SignInButton } from "@/components/app/FailureNotice";
 import { MarkedAvatar } from "@/components/app/MarkedAvatar";
 import { Button } from "@/components/ui/button";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from "@/components/ui/context-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useWhileVisible } from "@/hooks/useWhileVisible";
 import { copy } from "@/i18n";
 import type { Character } from "@/lib/api";
 import { showTime } from "@/lib/callTime";
 import { arrange, dayOf, previewOf, type ListRow, type Preview } from "@/lib/conversationList";
+import { createGroup, listGroups, type GroupSummary } from "@/lib/group";
 import { pin, setShown, unpin } from "@/lib/listPreferences";
 import { cn } from "@/lib/utils";
 import { herVars } from "@/theme/herVars";
-import { HideIcon, PinIcon, SearchIcon, ShowIcon, UnpinIcon } from "@/theme/icons";
+import { HideIcon, PinIcon, SearchIcon, ShowIcon, UnpinIcon, GroupCardIcon } from "@/theme/icons";
 
 import { Announcements } from "./Announcements";
 import { PreviewText } from "./PreviewText";
@@ -34,20 +46,84 @@ const t = copy.conversationList;
  * 列表栏是实底，不在她的子树里。宽屏时在左栏，窄屏时占满一页。
  */
 export function ConversationList({ selectedId }: { selectedId: string | null }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const { groupId: openGroupId } = useParams<{ groupId?: string }>();
   const { account, characters, latest, preferences, tidy, failure, reload, call, go, onScreen } = useDirectory();
   const now = useMinute();
   const [query, setQuery] = useState("");
   const [isFilterOpen, setFilterOpen] = useState(false);
+  const [groups, setGroups] = useState<GroupSummary[]>([]);
+  const [making, setMaking] = useState(false);
+  const [groupName, setGroupName] = useState("");
+  const [chosen, setChosen] = useState<string[]>([]);
+  const [starting, setStarting] = useState(false);
+
+  const loadGroups = useCallback(() => {
+    listGroups().then(setGroups, () => {});
+  }, []);
+
+  useEffect(() => {
+    loadGroups();
+  }, [loadGroups, pathname]);
+
+  // 群聊的新消息、预览和已读状态都跟着列表刷新：标签页在前台时每 30 秒拉一次，
+  // 从群页返回时因为 pathname 变了会马上再拉一次（页码里读群时后端已记成看过）。
+  useWhileVisible(loadGroups, 30_000, { atOnceWhenShown: true });
+
+  const startGroup = useCallback(() => {
+    if (!groupName.trim() || chosen.length === 0 || starting) return;
+    setStarting(true);
+    createGroup(groupName.trim(), chosen).then(
+      (group) => {
+        setStarting(false);
+        setMaking(false);
+        setChosen([]);
+        setGroupName("");
+        loadGroups();
+        router.push(`/conversation/group/${group.id}`);
+      },
+      () => setStarting(false),
+    );
+  }, [chosen, groupName, loadGroups, router, starting]);
+
   const keep = [selectedId, call?.characterId].filter((id): id is string => !!id);
   const shown = characters && arrange(characters, latest, { preferences, query, keep, onScreen });
   const hiddenCount = shown?.hiddenCount ?? 0;
   // 搜索时隐藏的人照样出现，「已隐藏 n 位」和全部隐藏的空状态只在没有搜索时出现。
   const showsHidden = query.trim() === "" && hiddenCount > 0;
 
+  // 群聊和私聊排在一起：置顶的在最前，其余按最近一条消息的时间交叉排列。
+  const ordered = useMemo(() => {
+    if (!shown) return [];
+    const pinned = shown.rows
+      .filter((row) => row.isPinned)
+      .map((row) => ({ kind: "character" as const, at: "", row }));
+    const rest = [
+      ...shown.rows
+        .filter((row) => !row.isPinned)
+        .map((row) => ({
+          kind: "character" as const,
+          at: previewOf(latest[row.character.id])?.at ?? "",
+          row,
+        })),
+      ...groups.map((group) => ({
+        kind: "group" as const,
+        at: group.last_message_at ?? group.last_topic_at ?? group.created_at,
+        group,
+      })),
+    ].sort((a, b) => (a.at === b.at ? 0 : b.at > a.at ? 1 : -1));
+    return [...pinned, ...rest];
+  }, [groups, latest, shown]);
+
   return (
     <div className="flex h-full flex-col bg-background text-foreground">
       <header className="flex shrink-0 items-center gap-2 pt-3 pr-2 pb-2 pl-4">
         <h1 className="flex-1 text-list-title">{t.title}</h1>
+        <Button variant="outline" size="sm" onClick={() => setMaking(true)}>
+          <GroupCardIcon aria-hidden />
+          {copy.play.group.create}
+        </Button>
         <ServiceStatusButton />
         <Announcements userId={account?.id ?? null} />
       </header>
@@ -102,26 +178,42 @@ export function ConversationList({ selectedId }: { selectedId: string | null }) 
         ) : (
           <>
             <ul aria-label={t.title}>
-              {shown.rows.map((row) => {
-                const c = row.character;
-                return (
-                  <li key={c.id}>
-                    <Row
-                      row={row}
-                      preview={previewOf(latest[c.id])}
-                      call={call?.characterId === c.id ? call : null}
-                      isSelected={c.id === selectedId}
-                      now={now}
-                      onSelect={() => {
-                        if (c.id === selectedId) return;
-                        go(`/conversation/${c.id}`);
-                      }}
-                      onTogglePin={() => tidy((p) => (row.isPinned ? unpin(p, c.id) : pin(p, c.id)))}
-                      onToggleHidden={() => tidy((p) => setShown(p, [c.id], row.isHidden))}
+              {ordered.map((item) =>
+                item.kind === "group" ? (
+                  <li key={`group-${item.group.id}`}>
+                    <GroupRow
+                      group={item.group}
+                      characters={characters}
+                      isOpen={item.group.id === openGroupId}
+                      go={go}
                     />
                   </li>
-                );
-              })}
+                ) : (
+                  <li key={item.row.character.id}>
+                    <Row
+                      row={item.row}
+                      preview={previewOf(latest[item.row.character.id])}
+                      call={call?.characterId === item.row.character.id ? call : null}
+                      isSelected={item.row.character.id === selectedId}
+                      now={now}
+                      onSelect={() => {
+                        if (item.row.character.id === selectedId) return;
+                        go(`/conversation/${item.row.character.id}`);
+                      }}
+                      onTogglePin={() =>
+                        tidy((p) =>
+                          item.row.isPinned
+                            ? unpin(p, item.row.character.id)
+                            : pin(p, item.row.character.id),
+                        )
+                      }
+                      onToggleHidden={() =>
+                        tidy((p) => setShown(p, [item.row.character.id], item.row.isHidden))
+                      }
+                    />
+                  </li>
+                ),
+              )}
             </ul>
             {showsHidden && (
               <button
@@ -135,7 +227,112 @@ export function ConversationList({ selectedId }: { selectedId: string | null }) 
           </>
         )}
       </div>
+
+      <Dialog open={making} onOpenChange={setMaking}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{copy.play.group.createTitle}</DialogTitle>
+            <DialogDescription>{copy.play.group.createHint}</DialogDescription>
+          </DialogHeader>
+          <Input
+            value={groupName}
+            onChange={(event) => setGroupName(event.target.value)}
+            placeholder="群名"
+          />
+          <div className="grid max-h-64 grid-cols-2 gap-2 overflow-y-auto py-2">
+            {(characters ?? []).map((character) => {
+              const picked = chosen.includes(character.id);
+              return (
+                <button
+                  key={character.id}
+                  type="button"
+                  aria-pressed={picked}
+                  onClick={() =>
+                    setChosen((current) =>
+                      current.includes(character.id)
+                        ? current.filter((id) => id !== character.id)
+                        : [...current, character.id],
+                    )
+                  }
+                  className={cn(
+                    "flex items-center gap-2 rounded-lg border px-2 py-2 text-left text-body transition-colors",
+                    picked ? "border-primary bg-muted" : "border-border",
+                  )}
+                >
+                  <MarkedAvatar
+                    name={character.name}
+                    src={character.avatar_url}
+                    size="sm"
+                  />
+                  <span className="truncate">{character.name}</span>
+                </button>
+              );
+            })}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMaking(false)} disabled={starting}>
+              取消
+            </Button>
+            <Button
+              onClick={startGroup}
+              disabled={starting || !groupName.trim() || chosen.length === 0}
+            >
+              {starting ? copy.play.group.creating : copy.play.group.create}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
+  );
+}
+
+/** 列表里的一行群聊：成员头像、群名、人数和最近一句。 */
+function GroupRow({
+  group,
+  characters,
+  isOpen,
+  go,
+}: {
+  group: GroupSummary;
+  characters: Character[] | null;
+  /** 这一群正开着：红点当场就消（后端进群时也会把它记成看过）。 */
+  isOpen: boolean;
+  go: (href: string) => void;
+}) {
+  const preview = group.preview;
+  return (
+    <button
+      type="button"
+      onClick={() => go(`/conversation/group/${group.id}`)}
+      className="flex w-full items-center gap-3 px-4 py-2 text-left outline-none hover:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:ring-inset"
+    >
+      <span className="flex shrink-0 -space-x-2">
+        {group.members.slice(0, 2).map((member) => (
+          <MarkedAvatar
+            key={member.id}
+            name={member.name}
+            src={characters?.find((c) => c.id === member.id)?.avatar_url ?? null}
+            size="sm"
+          />
+        ))}
+      </span>
+        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <span className="flex items-baseline justify-between gap-2">
+            <span className="flex min-w-0 items-center gap-1.5">
+              <span className="truncate text-body">{group.name}</span>
+              {group.unseen && !isOpen && (
+                <span className="size-2 shrink-0 rounded-full bg-primary" aria-hidden />
+              )}
+            </span>
+            <span className="shrink-0 text-meta text-muted-foreground">
+              {group.members.length} 人
+            </span>
+          </span>
+        <span className="truncate text-preview text-muted-foreground">
+          {preview ? `${preview.name}：${preview.zh || preview.text}` : copy.play.group.noHistory}
+        </span>
+      </span>
+    </button>
   );
 }
 

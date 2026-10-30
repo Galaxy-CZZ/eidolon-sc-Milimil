@@ -25,6 +25,7 @@ closes only what `build` made, in the order that lets what is still running fini
 
 import asyncio
 import logging
+import os
 from collections.abc import Awaitable, Callable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
@@ -74,6 +75,7 @@ from eidolon.own_keys import LLMService, OwnImageService, OwnKeys, ProviderLLMSe
 from eidolon.photos import Photos
 from eidolon.proxy import ProxyRoutes
 from eidolon.reach_outs import ReachOuts
+from eidolon.groups import Groups
 from eidolon.readings import load_readings, readings_path
 from eidolon.rerank import (
     FALLBACK_MODEL,
@@ -158,6 +160,8 @@ class Backend:
     """Exports users' data packages, and imports them."""
     reach_outs: ReachOuts
     """Has characters reach out to users once their time comes."""
+    groups: Groups
+    """The group chat: idols talking among themselves and with the user by relevance."""
     schedules: Schedules
     """Each week's jobs and every producer's schedule, where schedules are on."""
     cycles: Cycles
@@ -174,6 +178,7 @@ class Backend:
     _keeping_fresh: asyncio.Task[None] | None = field(default=None, repr=False)
     _probing: asyncio.Task[None] | None = field(default=None, repr=False)
     _reaching_out: asyncio.Task[None] | None = field(default=None, repr=False)
+    _talking: asyncio.Task[None] | None = field(default=None, repr=False)
     _sweeping: asyncio.Task[None] | None = field(default=None, repr=False)
     _tidying: asyncio.Task[None] | None = field(default=None, repr=False)
     _watching: asyncio.Task[None] | None = field(default=None, repr=False)
@@ -194,6 +199,7 @@ class Backend:
         self._keeping_fresh = asyncio.create_task(self.prices.catalog.keep_fresh())
         self._probing = asyncio.create_task(self.service_status.keep_probing())
         self._reaching_out = asyncio.create_task(self.reach_outs.keep_reaching_out())
+        self._talking = asyncio.create_task(self.groups.keep_going())
         self._sweeping = asyncio.create_task(self.bar.keep_sweeping())
         self._tidying = asyncio.create_task(keep_tidy(self.usage.forget_old, self.activity.forget_old))
         self._watching = asyncio.create_task(watch_the_loop(lambda: self.calls.in_progress))
@@ -206,7 +212,7 @@ class Backend:
             task
             for task in (
                 self._keeping_fresh, self._probing, self._reaching_out, self._sweeping,
-                self._tidying, self._watching, self._loading_stories,
+                self._tidying, self._watching, self._loading_stories, self._talking,
             )
             if task is not None
         ]
@@ -447,6 +453,14 @@ def build(
         database, store, engine, characters, config, affinities, activity,
         calls.in_call, clock, random or secure_random,
     )
+    groups = Groups(
+        database, clock, characters, config.lease, affinities, memories,
+        delay=(
+            float(os.environ.get("EIDOLON_GROUP_DELAY_MIN") or 10),
+            float(os.environ.get("EIDOLON_GROUP_DELAY_MAX") or 300),
+        ),
+    )
+    closers.append(groups.aclose)  # closed before the database, so each conversation is written down
     config.on_change(gifts.notice)
     return Backend(
         settings=settings,
@@ -483,6 +497,7 @@ def build(
         service_status=service_status,
         data_packages=DataPackages(database, store, memories, characters, gift_catalog, clock),
         reach_outs=reach_outs,
+        groups=groups,
         schedules=schedules,
         cycles=cycles,
         her_now=her_now,

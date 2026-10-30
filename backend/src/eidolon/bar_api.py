@@ -15,8 +15,9 @@ import json
 from collections.abc import AsyncIterator
 from typing import Literal
 
-from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse, StreamingResponse
+import httpx
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse, Response, StreamingResponse
 from pydantic import BaseModel, model_validator
 from starlette.types import Receive, Scope, Send
 
@@ -24,7 +25,9 @@ from eidolon.account_api import OwnKeysInput
 from eidolon.assembly import Backend
 from eidolon.bar import BarCall, BarClosed, BrokenDrink, NotFailed, NotWaiting, VisitGone
 from eidolon.drink_catalog import Mixture
+from eidolon.greetings import FishAudioSettings, _voice
 from eidolon.own_keys import BroughtKeys
+from eidolon.readings import load_readings, pronunciation_dictionary, readings_path, used_in
 from eidolon.sessions import DeviceTimezone, UserId
 
 
@@ -64,8 +67,17 @@ class ServeInput(BaseModel):
         )
 
 
+class TtsInput(BaseModel):
+    """A line of hers to voice: which character, and what she says."""
+
+    character_id: str
+    text: str
+
+
 def add_bar_routes(app: FastAPI, backend: Backend) -> None:
     bar = backend.bar
+    # 她念名字的读音（readings.toml），照招呼和通话一样交给 Fish Audio。
+    readings = load_readings(readings_path(backend.settings.characters_path))
 
     def refused(status: int, code: str):
         async def handler(_: Request, e: Exception) -> JSONResponse:
@@ -83,6 +95,25 @@ def add_bar_routes(app: FastAPI, backend: Backend) -> None:
         """Whether the bar is open and, if it is, its drinks in catalog order, and whether a
         visit done today would be rewarded."""
         return await bar.read(user_id)
+
+    @app.post("/api/bar/tts")
+    async def tts(body: TtsInput, user_id: UserId) -> Response:
+        """`text` said in the character's voice, as mp3; 422 for a character the bar has not,
+        or nothing said; 503 when this deployment has no speech synthesis."""
+        character = bar.character(body.character_id)
+        if character is None or not body.text.strip() or not character.voice_id.strip():
+            raise HTTPException(422, "要说是哪位角色、说什么")
+        try:
+            fish = FishAudioSettings.from_env()
+        except Exception:
+            raise HTTPException(503, "这个部署没有配语音合成") from None
+        dictionary = pronunciation_dictionary(used_in(body.text, readings))
+        async with httpx.AsyncClient(timeout=30) as client:
+            try:
+                audio = await _voice(client, fish, body.text, character.voice_id, dictionary)
+            except Exception as e:
+                raise HTTPException(502, f"语音合成失败：{e}") from None
+        return Response(audio, media_type="audio/mpeg")
 
     @app.post("/api/bar/visits")
     async def enter(

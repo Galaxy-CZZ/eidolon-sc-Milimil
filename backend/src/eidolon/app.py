@@ -63,6 +63,7 @@ from eidolon.bar_api import add_bar_routes
 from eidolon.calendar_api import add_calendar_routes
 from eidolon.cycles_api import add_cycle_routes
 from eidolon.gifts_api import add_gift_routes
+from eidolon.groups_api import add_group_routes
 from eidolon.invites_api import add_invite_routes
 from eidolon.photos_api import add_photo_routes
 from eidolon.schedule_api import add_schedule_routes
@@ -410,6 +411,7 @@ def create_app(backend: Backend) -> FastAPI:
     add_schedule_routes(app, backend)
     add_cycle_routes(app, backend)
     add_bar_routes(app, backend)
+    add_group_routes(app, backend)
     add_photo_routes(app, backend)
     add_sponsor_routes(app, backend)
     add_data_package_routes(app, backend)

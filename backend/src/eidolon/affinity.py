@@ -92,7 +92,7 @@ RECOVERY_PER_DAY = 10.0
 LOWEST, HIGHEST = 0.0, 100.0
 """What it is held between; falling to the lowest begins a cooldown."""
 
-LEVEL_STEPS = (-1.5, -0.5, 0.0, 0.1, 0.2)
+LEVEL_STEPS = (-0.4, -0.2, 0.0, 0.1, 0.2)
 """How much a turn changes it by the level the judge model judges it at, from hurting her
 (0) to making her very happy (4): a tier takes weeks of turns."""
 
@@ -116,7 +116,7 @@ DAY_TIMEZONE = "Asia/Shanghai"
 """The time zone whose midnight begins each day for turns' gains and draw chances: Beijing
 time, wherever the user is, so that everyone has the same days."""
 
-GAINS_PER_DAY = 0.6
+GAINS_PER_DAY = 10.0
 """How much turns can raise it in a day (`day_of`)."""
 
 Days = Literal["period", "premenstrual"]
@@ -128,7 +128,7 @@ INCONSIDERATE, UNRELATED, CONSIDERATE = 0, 1, 2
 inconsiderate of how she is these days, what they said has nothing to do with it, or they
 were considerate of it."""
 
-HER_DAYS_LEVEL_STEPS = (-3.0, -1.0, 0.0, 0.1, 0.2)
+HER_DAYS_LEVEL_STEPS = (-0.8, -0.4, 0.0, 0.1, 0.2)
 """`LEVEL_STEPS` in her days: the two that lower it, by twice as much (ADR-0030; the cycles
 map's ticket 03, `.scratch/cycles/map.md`, as are the numbers after it)."""
 
@@ -140,7 +140,7 @@ CONSIDERATE_STEP = 0.3
 """How much more a turn in her days raises it, being considerate, never for one that tries
 to dictate it (ADR-0030)."""
 
-CONSIDERATE_GAINS_PER_DAY = 0.6
+CONSIDERATE_GAINS_PER_DAY = 10.0
 """How much being considerate can raise it in a day, apart from `GAINS_PER_DAY`, on the same
 day (`day_of`): a day in hers raises it twice as far at most (ADR-0030)."""
 
@@ -303,19 +303,24 @@ class Affinity:
 
 @dataclass(frozen=True)
 class Status:
-    """What the user is shown: the tier, and when the cooldown ends if in one."""
+    """What the user is shown: the tier, the value, and when the cooldown ends if in one."""
 
     tier: Tier
     cooldown_until: datetime | None
+    value: float
 
     @property
     def cooling(self) -> bool:
         return self.cooldown_until is not None
 
-    def shown(self) -> dict[str, str | None]:
+    def shown(self) -> dict[str, str | float | None]:
         """As the browser is told it."""
         until = self.cooldown_until
-        return {"tier": self.tier, "cooldown_until": until and until.isoformat()}
+        return {
+            "tier": self.tier,
+            "cooldown_until": until and until.isoformat(),
+            "value": round(self.value, 1),
+        }
 
 
 _IN_HER_OWN_WAY = "请按你自己的性格和口吻表现出来。"
@@ -555,6 +560,7 @@ class Change:
     tier: Tier
     cooldown: bool
     thawed: bool = False
+    level: int = 2
 
 
 def _gift_step(rarity: Rarity, liked: bool, warmed: bool, cooling: bool) -> float:
@@ -598,7 +604,7 @@ class Affinities:
         """The user's affinity with the character now, read through `db`, on or off: whoever
         reads it is to read it only while affinity is `on`."""
         affinity = _row(db, user_id, character_id, self._clock())[0]
-        return Status(affinity.tier, affinity.cooldown_until)
+        return Status(affinity.tier, affinity.cooldown_until, affinity.value)
 
     async def tiers(self, user_id: str, character_ids: Sequence[str]) -> list[Tier]:
         """The tiers the user's affinity with each of the characters is in now, in the
@@ -645,6 +651,7 @@ class Affinities:
                 tier_changed=after.tier != before.tier,
                 tier=after.tier,
                 cooldown=after.cooling and not before.cooling,
+                level=judged.level,
             )
         db.execute(
             "INSERT OR REPLACE INTO affinities (user_id, character_id, value,"
@@ -656,7 +663,7 @@ class Affinities:
                 considerate_today + min(max(more, 0.0), rose - rose_by_step),
             ),
         )
-        return change, Status(after.tier, after.cooldown_until)
+        return change, Status(after.tier, after.cooldown_until, after.value)
 
     def receive_gift(
         self,
@@ -679,8 +686,11 @@ class Affinities:
         thawed = before.cooling and not after.cooling
         change = None
         if thawed or (not after.cooling and after.value != before.value):
-            change = Change(True, after.tier != before.tier, after.tier, False, thawed)
-        return change, Status(after.tier, after.cooldown_until)
+            change = Change(
+                True, after.tier != before.tier, after.tier, False, thawed,
+                level=4 if liked else 3,
+            )
+        return change, Status(after.tier, after.cooldown_until, after.value)
 
     def job_done(self, db: sqlite3.Connection, user_id: str, character_id: str) -> None:
         """Raise the user's affinity with the character for a job of hers in their schedule
@@ -695,8 +705,8 @@ class Affinities:
         character_id: str,
         served: Sequence[DrinkServed],
     ) -> bool:
-        """Raise the user's affinity with the character for the day's first visit to the bar
-        done (GLOSSARY.md「光顾」), having been `served` those drinks, through `db`, in the
+        """Raise the user's affinity with the character for a visit to the bar done
+        (GLOSSARY.md「光顾」), having been `served` those drinks, through `db`, in the
         transaction the visit is written down in: by `SERVED_STEPS` averaged, in a cooldown too, as a job
         done does. Whether it rose: not if it was as high as it goes."""
         steps = [

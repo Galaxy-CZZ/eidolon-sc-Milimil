@@ -129,7 +129,7 @@ class Mirror:
         interval: float = DEFAULT_INTERVAL,
     ) -> None:
         self._client = client or httpx.AsyncClient(
-            timeout=httpx.Timeout(60, connect=10), headers={"User-Agent": _USER_AGENT}
+            timeout=httpx.Timeout(60, connect=30), headers={"User-Agent": _USER_AGENT}
         )
         self._interval = interval
         self._last_request: float | None = None

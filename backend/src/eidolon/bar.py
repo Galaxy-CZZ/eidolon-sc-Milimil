@@ -399,6 +399,11 @@ class Bar:
         """Visits over, till they are settled."""
         db.prepare(_open)
 
+    def character(self, character_id: str) -> Character | None:
+        """The character `character_id`, for her voice and the like; None if the bar has no
+        such."""
+        return self._characters.get(character_id)
+
     async def read(self, user_id: str) -> dict:
         """Whether the bar is open and, if it is, its drinks in catalog order, and whether the
         user would be rewarded for a visit done today: none done yet, and rewards given."""
@@ -805,22 +810,28 @@ class Bar:
     def _write_down(
         self, db: sqlite3.Connection, visit: _Visit, now: datetime, rewarding: bool
     ) -> Rewarded | None:
-        """Write the visit down, done `now`, rewarding it if `rewarding` and it is the user's
-        first done of the day it came in on: what it was rewarded with; None if nothing."""
+        """Write the visit down, done `now`, rewarding it if `rewarding`: the draw chance only
+        on the user's first done of the day it came in on, her affinity on every visit; what it
+        was rewarded with; None if nothing."""
         rewarded = None
-        if rewarding and not _done_on(db, visit.user_id, visit.entered_on):
+        if rewarding:
             assert self._gifts is not None and self._affinities is not None
             her = visit.character
-            rewarded = Rewarded(
-                int(self._gifts.reward_draw(db, visit.user_id, f"bar:{visit.entered_on}")),
-                self._affinities.visit_done(
-                    db, visit.user_id, her.id,
-                    [
-                        DrinkServed(s.tier, has_best(s.order, her, self._catalog))
-                        for s in visit.servings
-                    ],
-                ),
+            first_today = not _done_on(db, visit.user_id, visit.entered_on)
+            draws = (
+                int(self._gifts.reward_draw(db, visit.user_id, f"bar:{visit.entered_on}"))
+                if first_today
+                else 0
             )
+            affinity_up = self._affinities.visit_done(
+                db, visit.user_id, her.id,
+                [
+                    DrinkServed(s.tier, has_best(s.order, her, self._catalog))
+                    for s in visit.servings
+                ],
+            )
+            if draws or affinity_up:
+                rewarded = Rewarded(draws, affinity_up)
         orders = [
             {
                 "target": s.order.target.id, "phrasing": s.order.phrasing,

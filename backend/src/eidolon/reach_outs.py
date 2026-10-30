@@ -79,7 +79,7 @@ PLACES = 1000
 """How many places in a tier's range her time may be drawn at, evenly apart; and in the
 `MORNING`."""
 
-NIGHT = (time(22), time(8))
+NIGHT = (time(1), time(7))
 """When in the producer's day she does not reach out: from the first to the second."""
 
 MORNING = timedelta(hours=2)
@@ -430,11 +430,18 @@ def _set_due(db: sqlite3.Connection, conversation_id: str, contact_at: str, due_
 
 def _at_night(at: datetime, zone: ZoneInfo) -> bool:
     local = at.astimezone(zone).time()
+    # The quiet hours sit inside one day (1:00–7:00); a range that crosses midnight is read
+    # as two spans, from the start to midnight and midnight to the end.
+    if NIGHT[0] <= NIGHT[1]:
+        return NIGHT[0] <= local < NIGHT[1]
     return local >= NIGHT[0] or local < NIGHT[1]
 
 
 def _morning_after(at: datetime, zone: ZoneInfo) -> datetime:
     """When the night `at` is in ends."""
     local = at.astimezone(zone)
-    day = local.date() if local.time() < NIGHT[1] else local.date() + timedelta(days=1)
+    if NIGHT[0] <= NIGHT[1]:
+        day = local.date()
+    else:
+        day = local.date() if local.time() < NIGHT[1] else local.date() + timedelta(days=1)
     return datetime.combine(day, NIGHT[1], zone)
