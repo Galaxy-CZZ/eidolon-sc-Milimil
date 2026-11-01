@@ -53,44 +53,64 @@ describe("describeLimit", () => {
 describe("limitDraft and limitsInput", () => {
   const followed = limitDraft(null);
 
+  const allFollowed = { turns: followed, calls: followed, photos: followed, visits: followed, readAlouds: followed };
+  const noLimits = {
+    turns_per_hour: null,
+    calls_per_hour: null,
+    photos_per_hour: null,
+    visits_per_hour: null,
+    read_alouds_per_hour: null,
+  };
+
   it("round-trips each kind of limit through the editor", () => {
     for (const limit of [null, "unlimited", 0, 5] as const) {
-      expect(limitsInput(limitDraft(limit), limitDraft(5), limitDraft(limit), limitDraft(limit)), String(limit)).toEqual({
-        input: { turns_per_hour: limit, calls_per_hour: 5, photos_per_hour: limit, visits_per_hour: limit },
+      const draft = limitDraft(limit);
+      expect(
+        limitsInput({ turns: draft, calls: limitDraft(5), photos: draft, visits: draft, readAlouds: draft }),
+        String(limit),
+      ).toEqual({
+        input: {
+          turns_per_hour: limit,
+          calls_per_hour: 5,
+          photos_per_hour: limit,
+          visits_per_hour: limit,
+          read_alouds_per_hour: limit,
+        },
       });
     }
   });
 
   it("keeps own keys only apart from a number: 0 is never typed in", () => {
     expect(limitDraft(0)).toEqual({ choice: "own_keys", count: null });
-    expect(limitsInput({ choice: "number", count: 0 }, limitDraft(5), followed, followed)).toEqual({
+    expect(limitsInput({ ...allFollowed, turns: { choice: "number", count: 0 }, calls: limitDraft(5) })).toEqual({
       problems: [{ field: "turns", reason: "count" }],
     });
   });
 
-  it("saves the photos or the visits alone, the turns and calls following the deployment", () => {
-    expect(limitsInput(followed, followed, limitDraft(0), followed)).toEqual({
-      input: { turns_per_hour: null, calls_per_hour: null, photos_per_hour: 0, visits_per_hour: null },
+  it("saves any one of them alone, the others following the deployment", () => {
+    expect(limitsInput({ ...allFollowed, photos: limitDraft(0) })).toEqual({
+      input: { ...noLimits, photos_per_hour: 0 },
     });
-    expect(limitsInput(followed, followed, followed, limitDraft("unlimited"))).toEqual({
-      input: { turns_per_hour: null, calls_per_hour: null, photos_per_hour: null, visits_per_hour: "unlimited" },
+    expect(limitsInput({ ...allFollowed, readAlouds: limitDraft("unlimited") })).toEqual({
+      input: { ...noLimits, read_alouds_per_hour: "unlimited" },
     });
   });
 
   it("names why there is nothing to save: all follow the deployment, or a number is chosen but not given", () => {
-    expect(limitsInput(followed, followed, followed, followed)).toEqual({
+    expect(limitsInput(allFollowed)).toEqual({
       problems: [{ field: "turns", reason: "needsOne" }],
     });
-    expect(limitsInput({ choice: "number", count: null }, followed, followed, followed)).toEqual({
+    expect(limitsInput({ ...allFollowed, turns: { choice: "number", count: null } })).toEqual({
       problems: [{ field: "turns", reason: "count" }],
     });
     const none = { choice: "number", count: null } as const;
-    expect(limitsInput(none, none, none, none)).toEqual({
+    expect(limitsInput({ turns: none, calls: none, photos: none, visits: none, readAlouds: none })).toEqual({
       problems: [
         { field: "turns", reason: "count" },
         { field: "calls", reason: "count" },
         { field: "photos", reason: "count" },
         { field: "visits", reason: "count" },
+        { field: "readAlouds", reason: "count" },
       ],
     });
   });
@@ -102,6 +122,7 @@ describe("describeLimits", () => {
     calls_per_hour: null,
     photos_per_hour: null,
     visits_per_hour: null,
+    read_alouds_per_hour: null,
     note: null,
     updated_at: "2026-10-11T00:00:00+00:00",
   };
@@ -117,10 +138,10 @@ describe("describeLimits", () => {
     );
   });
 
-  it("adds the visits where they are set apart, after the photos", () => {
+  it("adds the visits and the read-alouds where they are set apart, after the photos", () => {
     expect(describeLimits({ ...limits, visits_per_hour: 2 })).toBe("回合 每小时 5 次 · 通话 跟随全站 · 光顾 每小时 2 次");
-    expect(describeLimits({ ...limits, photos_per_hour: 1, visits_per_hour: "unlimited" })).toBe(
-      "回合 每小时 5 次 · 通话 跟随全站 · 照片 每小时 1 张 · 光顾 不限",
+    expect(describeLimits({ ...limits, photos_per_hour: 1, visits_per_hour: "unlimited", read_alouds_per_hour: 0 })).toBe(
+      "回合 每小时 5 次 · 通话 跟随全站 · 照片 每小时 1 张 · 光顾 不限 · 朗读 只能用自带密钥",
     );
   });
 });

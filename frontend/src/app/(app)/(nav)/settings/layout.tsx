@@ -17,6 +17,7 @@ import {
   CyclesIcon,
   DataPackageIcon,
   MemoriesIcon,
+  MomentsIcon,
   OwnKeysIcon,
   PhoneIcon,
   ProfileIcon,
@@ -33,6 +34,7 @@ const ICONS = {
   stats: StatsIcon,
   call: PhoneIcon,
   "reach-outs": ReachOutsIcon,
+  moments: MomentsIcon,
   cycles: CyclesIcon,
   appearance: AppearanceIcon,
   "own-keys": OwnKeysIcon,
@@ -42,7 +44,7 @@ const ICONS = {
 };
 
 /**
- * 设置（DESIGN.md「设置页」）：一级是各类的列表，分四组、组间一条分隔线（部署者没开搭话时没有「搭话」，没开周期时没有「周期」）；二级是一类的页面（`/settings/<类别>`），没有三级。
+ * 设置（DESIGN.md「设置页」）：一级是各类的列表，分四组、组间一条分隔线（部署者没开搭话时没有「搭话」，没开朋友圈时没有「朋友圈」，没开周期时没有「周期」）；二级是一类的页面（`/settings/<类别>`），没有三级。
  * 部署者开着赞赏（GLOSSARY.md「赞赏」）时，最后一组「关于」上面多一行「赞赏」，不是一类、没有二级，点了放大收款码。
  * - 电脑：导航栏右边第二栏 320px 的一级列表，顶上「设置」大标题，当前那一类铺中性底色、不带 ›（网址就是这一类时才标 `aria-current`）；右栏是这一类的二级页面。
  *   只打开 `/settings` 时右栏是档案，档案是当前项。

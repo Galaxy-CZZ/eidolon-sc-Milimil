@@ -54,6 +54,10 @@ flavor she dislikes if any (`bar_disliked_flavor`) and how well she holds her dr
 are right by the drink catalog is checked once both are loaded
 (`drink_catalog.check_bar_tastes`).
 
+An idol likes two to four kinds of place (`place_likes`, as the place pool names them), the
+kinds more often in her moments; they want no sources. That they are kinds there are is
+checked by `place_pool.check_place_likes`.
+
 Character facts are a Markdown file; each section under a heading is one fact,
 retrieved on its own when a turn calls for it.
 
@@ -98,6 +102,16 @@ class Fact:
     """The headings above it, e.g. `人物关系 / 風野灯織`; None for text before any heading."""
     text: str
     """The entry as it is retrieved, headed by its title."""
+
+    @property
+    def headings(self) -> list[str]:
+        """The headings above it, the outermost first; none for text before any heading."""
+        return self.title.split(" / ") if self.title is not None else []
+
+    @property
+    def body(self) -> str:
+        """What is under its heading, without its title."""
+        return self.text.split("\n", 1)[1].strip() if self.title is not None else self.text
 
 
 @dataclass(frozen=True)
@@ -152,6 +166,9 @@ class Character:
     scsp_avatar: Path | None = None
     """Her avatar in SCSP's set, which users can switch to in settings; None, and they see
     her usual avatar either way."""
+    signature: Path | None = None
+    """Her handwritten signature, at the end of her letters; None, and she signs with her
+    name in the letter's hand."""
     speakers: tuple[str, ...] = ()
     """Names her lines are credited to in story scripts, e.g. 真乃."""
     facts: tuple[Fact, ...] = ()
@@ -178,6 +195,9 @@ class Character:
     liked_gifts: tuple[str, ...] = ()
     """The gifts she likes, by identifier in the gift catalog; giving her one raises
     affinity more. Never told to the user."""
+    place_likes: tuple[str, ...] | None = None
+    """The kinds of place she likes, as the place pool names them (`park`); None, none
+    given."""
     bar_flavors: tuple[str, ...] = ()
     """The flavors she likes at the bar, as the drink catalog names them (`sweet`)."""
     bar_kind: str | None = None
@@ -294,9 +314,16 @@ def _parse_character(
     if not isinstance(liked_gifts, list) or not all(isinstance(g, str) for g in liked_gifts):
         raise CharacterConfigError(f"角色 {label} 的 liked_gifts 应为礼物标识的列表")
 
+    place_likes = entry.get("place_likes")
+    if place_likes is not None and (
+        not isinstance(place_likes, list) or not all(isinstance(k, str) for k in place_likes)
+    ):
+        raise CharacterConfigError(f"角色 {label} 的 place_likes 应为地点类别的列表")
+
     avatar = _optional_file(entry, "avatar", base, label)
     background = _optional_file(entry, "background", base, label)
     scsp_avatar = _optional_file(entry, "scsp_avatar", base, label)
+    signature = _optional_file(entry, "signature", base, label)
 
     idol_id = entry.get("idol_id")
     # bool is an int in Python, but `idol_id = true` is a mistake all the same.
@@ -326,6 +353,7 @@ def _parse_character(
         age=age,
         background=background,
         scsp_avatar=scsp_avatar,
+        signature=signature,
         speakers=tuple(speakers),
         facts=facts,
         sheet_path=sheet_path,
@@ -338,6 +366,7 @@ def _parse_character(
         name_kana=_other_name(entry, "name_kana", label),
         name_romaji=_other_name(entry, "name_romaji", label),
         liked_gifts=tuple(liked_gifts),
+        place_likes=tuple(place_likes) if place_likes is not None else None,
         bar_flavors=_bar_names(entry, "bar_flavors", label),
         bar_kind=_bar_name(entry, "bar_kind", label),
         bar_favorites=_bar_names(entry, "bar_favorites", label),
@@ -433,6 +462,11 @@ def _optional_file(entry: dict, field: str, base: Path, label: str) -> Path | No
         log.warning("%s %s of character %s is missing; showing none", field, path, label)
         return None
     return path
+
+
+def signature_url(character: Character) -> str | None:
+    """Where the browser gets her signature; None without one."""
+    return f"/api/characters/{character.id}/signature" if character.signature else None
 
 
 def is_draft(sheet: str) -> bool:

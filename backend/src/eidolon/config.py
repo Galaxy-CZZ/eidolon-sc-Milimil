@@ -54,12 +54,13 @@ REGISTRATIONS: tuple[Registration, ...] = get_args(Registration)
 
 ProxiedService = Literal[
     "chat_llm", "memory_llm", "judge", "embedding", "rerank", "tts", "stt", "image",
-    "own_llm", "own_tts", "own_stt", "own_image",
+    "gpt_image", "own_llm", "own_tts", "own_stt", "own_image",
 ]
 """What may reach its provider through the proxy (GLOSSARY.md「网络代理」): the deployer's
 services, the chat model, in text turns and calls alike; the memory model; the judge
 model, whichever; the embedding service and the reranker; Fish Audio; the speech
-recognition chosen; image generation, wherever it is. Then users' own keys, apart from the
+recognition chosen; image generation, wherever it is, and GPT Image apart from it, OpenAI
+wanting a proxy where a relay of NovelAI may not. Then users' own keys, apart from the
 deployer's, their providers being their own: their LLMs, background models too, though only
 to a known provider's host (GLOSSARY.md「已知服务商」, ADR-0022); Fish Audio; the speech
 recognition they chose; image generation, though only to NovelAI's own address."""
@@ -107,6 +108,35 @@ class ReachOutSettings:
 
     enabled: bool
     per_day: int
+
+
+DEFAULT_MOMENTS_PER_DAY = 3
+"""How many moments each user may have a day, of all characters together, unless the admin
+console says otherwise."""
+
+DEFAULT_MOMENT_REPLIES_PER_DAY = 10
+"""How many of each user's comments a day the characters reply to at most, of them all
+together, unless the admin console says otherwise."""
+
+MapSite = Literal["osm", "google", "amap"]
+"""Where a moment's place links to on the map: OpenStreetMap, Google Maps or Amap (高德)."""
+
+MAP_SITES: tuple[MapSite, ...] = get_args(MapSite)
+
+DEFAULT_MAP_SITE: MapSite = "osm"
+
+
+@dataclass(frozen=True)
+class MomentSettings:
+    """Whether characters post moments to users' moments (GLOSSARY.md「朋友圈」), off unless
+    `.env` turns it on, how many moments each user may have a day, which map their places
+    link to, the same for everyone, and how many of each user's comments a day they reply to;
+    the admin console may override them all."""
+
+    enabled: bool
+    per_day: int
+    map: MapSite = DEFAULT_MAP_SITE
+    replies_per_day: int = DEFAULT_MOMENT_REPLIES_PER_DAY
 
 
 @dataclass(frozen=True)
@@ -224,6 +254,20 @@ IMAGE_FORMATS: tuple[ImageFormat, ...] = get_args(ImageFormat)
 MAX_IMAGE_CONCURRENCY = 10
 """The most photos the deployer's image key may be set to generate at a time."""
 
+DEFAULT_GPT_IMAGE_BASE_URL = "https://api.openai.com/v1"
+DEFAULT_GPT_IMAGE_MODEL = "gpt-image-2"
+GptImageQuality = Literal["low", "medium", "high", "auto", "xhigh", "max"]
+"""How carefully GPT Image draws: what OpenAI takes, `xhigh` and `max` from its 2.5 models on."""
+GPT_IMAGE_QUALITIES: tuple[GptImageQuality, ...] = get_args(GptImageQuality)
+DEFAULT_GPT_IMAGE_QUALITY: GptImageQuality = "medium"
+DEFAULT_GPT_IMAGE_STYLE = (
+    "Flat cel-shaded anime background art, like a background painting from a TV anime:"
+    " clean line art, cel shading, simplified shapes and details, soft flat colors. It must"
+    " look hand-drawn, never photographic: no lens effects, no HDR, no photo-real textures."
+)
+"""The art style GPT Image draws a moment's picture no one is in in, unless the deployer
+writes another."""
+
 DEFAULT_ICE_SERVERS: list[IceServer] = [{"urls": ["stun:stun.l.google.com:19302"]}]
 
 DEFAULT_TURNS_PER_HOUR = 60
@@ -234,6 +278,8 @@ DEFAULT_TURNS_PER_CALL = 40
 """About what ten minutes of talking takes; a cap on typing turns in quickly during a call."""
 DEFAULT_PHOTOS_PER_HOUR = 5
 DEFAULT_VISITS_PER_HOUR = 5
+DEFAULT_READ_ALOUDS_PER_HOUR = 60
+"""As many as the text turns: one for each of her replies."""
 DEFAULT_CONCURRENT_CALLS = 10
 """What one process on the deployment's two cores carries, every call's audio on the one
 event loop."""
@@ -428,8 +474,12 @@ class Settings:
     fish_audio_model: FishAudioModel = DEFAULT_FISH_AUDIO_MODEL
     embedding: "EmbeddingSettings | None" = None
     rerank: "RerankSettings | None" = None
+    qweather: "QWeatherSettings | None" = None
+    """The deployer's QWeather account, for where the producer is; None without it."""
     image: "ImageSettings | None" = None
     """The deployer's image generation (GLOSSARY.md「生图」), for photos; None without it."""
+    gpt_image: "GptImageSettings | None" = None
+    """GPT Image, for moments' pictures no one is in, beside `image`; None without it."""
     judge: "JudgeSettings | None" = None
     """The judge model (`JUDGE_PROVIDER`). Retrieval needs the embedding service, the
     reranker and the judge model; without any of them, turns go unretrieved. Without the
@@ -448,6 +498,13 @@ class Settings:
     reach_outs: bool = False
     """Whether characters reach out to users (GLOSSARY.md「搭话」), on the deployer's chat
     model; off unless `.env` turns it on, and the admin console may override it."""
+    letters: bool = False
+    """Whether characters write letters on their occasions (GLOSSARY.md「信」), on the
+    deployer's chat model; off unless `.env` turns it on, and the admin console may override
+    it."""
+    moments: bool = False
+    """Whether characters post moments (GLOSSARY.md「朋友圈」), on the deployer's chat model;
+    off unless `.env` turns it on, and the admin console may override it."""
     schedule: bool = True
     """Whether each week's jobs are published for producers to schedule (GLOSSARY.md「日程」);
     on unless `.env` turns it off, and the admin console may override it."""
@@ -559,6 +616,8 @@ class Settings:
             embedding=EmbeddingSettings.from_env(),
             rerank=RerankSettings.from_env(),
             image=ImageSettings.from_env(),
+            gpt_image=GptImageSettings.from_env(),
+            qweather=QWeatherSettings.from_env(),
             judge=judge_from_env(),
             emotion=EmotionSettings.from_env(),
             usage_limits=UsageLimits.from_env(),
@@ -566,6 +625,8 @@ class Settings:
             exempting_keys=exempting_keys_from_env(),
             affinity_and_gifts=_switch("EIDOLON_AFFINITY_AND_GIFTS", default=True),
             reach_outs=_switch("EIDOLON_REACH_OUTS"),
+            letters=_switch("EIDOLON_LETTERS"),
+            moments=_switch("EIDOLON_MOMENTS"),
             schedule=_switch("EIDOLON_SCHEDULE", default=True),
             cycles=_switch("EIDOLON_CYCLES", default=True),
             bar=_switch("EIDOLON_BAR", default=True),
@@ -904,6 +965,49 @@ class JevSettings:
         )
 
 
+QWEATHER_FIELDS = ("host", "developer_id", "project_id", "key_id", "private_key")
+"""What the deployer's QWeather account takes, all of them, or it is none."""
+
+
+@dataclass(frozen=True)
+class QWeatherSettings:
+    """The deployer's QWeather (和风天气) account, for where the producer is (`qweather`): its
+    own API `host`, the developer's id (`iss`), the project's (`sub`), the credential's
+    (`kid`), and the Ed25519 private key it was made with, in PEM or its base64 alone."""
+
+    host: str
+    developer_id: str
+    project_id: str
+    key_id: str
+    private_key: str
+
+    @classmethod
+    def from_env(cls) -> "QWeatherSettings | None":
+        """`QWEATHER_API_HOST`, `QWEATHER_DEVELOPER_ID`, `QWEATHER_PROJECT_ID`,
+        `QWEATHER_KEY_ID` and `QWEATHER_PRIVATE_KEY`: none if all are unset; some set and
+        not the others, the server does not start."""
+        names = {
+            "host": "QWEATHER_API_HOST", "developer_id": "QWEATHER_DEVELOPER_ID",
+            "project_id": "QWEATHER_PROJECT_ID", "key_id": "QWEATHER_KEY_ID",
+            "private_key": "QWEATHER_PRIVATE_KEY",
+        }
+        values = {f: (os.environ.get(n) or "").strip() for f, n in names.items()}
+        if not any(values.values()):
+            return None
+        if missing := [names[f] for f, v in values.items() if not v]:
+            raise RuntimeError(f"和风天气还缺环境变量 {'、'.join(missing)}，要么都填，要么都不填")
+        values["host"] = qweather_host(values["host"])
+        return cls(**values)
+
+
+def qweather_host(value: str) -> str:
+    """The API host as it may be written: with or without `https://` and a trailing slash."""
+    value = value.strip()
+    for prefix in ("https://", "http://"):
+        value = value.removeprefix(prefix)
+    return value.rstrip("/")
+
+
 @dataclass(frozen=True)
 class ImageSettings:
     """An image service (GLOSSARY.md「生图」): in NovelAI's own format, `base_url` up to the
@@ -951,6 +1055,46 @@ class ImageSettings:
             concurrency=int(concurrency),
             style=(os.environ.get("NOVELAI_STYLE") or "").strip(),
         )
+
+
+@dataclass(frozen=True)
+class GptImageSettings:
+    """GPT Image (GLOSSARY.md「生图」), for moments' pictures no one is in: in OpenAI's image
+    format, `base_url` up to `/v1` (`/images/generations`), gpt-image-2 or later, which take
+    any size; at `quality`, in the art style `style`, a sentence opening every prompt. One at
+    a time, always."""
+
+    api_key: str
+    base_url: str = DEFAULT_GPT_IMAGE_BASE_URL
+    model: str = DEFAULT_GPT_IMAGE_MODEL
+    quality: GptImageQuality = DEFAULT_GPT_IMAGE_QUALITY
+    style: str = DEFAULT_GPT_IMAGE_STYLE
+
+    @classmethod
+    def from_env(cls) -> "GptImageSettings | None":
+        """`GPT_IMAGE_API_KEY`, without which there is none, `GPT_IMAGE_BASE_URL`,
+        `GPT_IMAGE_MODEL`, `GPT_IMAGE_QUALITY` and `GPT_IMAGE_STYLE`."""
+        api_key = (os.environ.get("GPT_IMAGE_API_KEY") or "").strip()
+        if not api_key:
+            return None
+        quality = (os.environ.get("GPT_IMAGE_QUALITY") or "").strip() or DEFAULT_GPT_IMAGE_QUALITY
+        if quality not in GPT_IMAGE_QUALITIES:
+            raise RuntimeError(
+                f"环境变量 GPT_IMAGE_QUALITY 只能是 {'、'.join(GPT_IMAGE_QUALITIES)}，而不是 {quality}"
+            )
+        return cls(
+            api_key=api_key,
+            base_url=(os.environ.get("GPT_IMAGE_BASE_URL") or "").strip().rstrip("/")
+            or DEFAULT_GPT_IMAGE_BASE_URL,
+            model=(os.environ.get("GPT_IMAGE_MODEL") or "").strip() or DEFAULT_GPT_IMAGE_MODEL,
+            quality=quality,  # pyright: ignore[reportArgumentType]  # checked above
+            style=gpt_image_style_from_env(),
+        )
+
+
+def gpt_image_style_from_env() -> str:
+    """`GPT_IMAGE_STYLE`, or the default art style for GPT Image, with a key or without."""
+    return (os.environ.get("GPT_IMAGE_STYLE") or "").strip() or DEFAULT_GPT_IMAGE_STYLE
 
 
 @dataclass(frozen=True)
@@ -1123,8 +1267,9 @@ time limit (`EIDOLON_CALL_MINUTES=0`)."""
 @dataclass(frozen=True)
 class UsageLimits:
     """How many text turns, voice calls and visits to the bar (GLOSSARY.md「光顾」) each user
-    may start in any hour, and how many photos she may send them (GLOSSARY.md「照片」),
-    counted across all their devices and sign-in methods, how long and how many turns one
+    may start in any hour, how many photos she may send them (GLOSSARY.md「照片」), and how many
+    times her words may be read aloud to them (GLOSSARY.md「朗读」), counted across all their
+    devices and sign-in methods, how long and how many turns one
     call may last, and how many calls there may be at once, all users' together, exempt ones
     too; None is no limit."""
 
@@ -1135,6 +1280,7 @@ class UsageLimits:
     photos_per_hour: int | None = DEFAULT_PHOTOS_PER_HOUR
     concurrent_calls: int | None = DEFAULT_CONCURRENT_CALLS
     visits_per_hour: int | None = DEFAULT_VISITS_PER_HOUR
+    read_alouds_per_hour: int | None = DEFAULT_READ_ALOUDS_PER_HOUR
 
     @classmethod
     def from_env(cls) -> "UsageLimits":
@@ -1146,6 +1292,9 @@ class UsageLimits:
             photos_per_hour=_limit("EIDOLON_PHOTOS_PER_HOUR", DEFAULT_PHOTOS_PER_HOUR),
             concurrent_calls=_limit("EIDOLON_CONCURRENT_CALLS", DEFAULT_CONCURRENT_CALLS),
             visits_per_hour=_limit("EIDOLON_VISITS_PER_HOUR", DEFAULT_VISITS_PER_HOUR),
+            read_alouds_per_hour=_limit(
+                "EIDOLON_READ_ALOUDS_PER_HOUR", DEFAULT_READ_ALOUDS_PER_HOUR
+            ),
         )
 
 

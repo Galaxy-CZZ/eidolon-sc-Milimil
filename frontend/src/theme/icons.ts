@@ -47,6 +47,8 @@ export { Trophy as AchievementsIcon } from "lucide-react";
 
 // 对话列表页首的公告铃铛（GLOSSARY.md「公告」）；后台导航的公告用 Megaphone。
 export { Bell as AnnouncementsBellIcon } from "lucide-react";
+// 对话列表页首的信封键（GLOSSARY.md「信」）；读信时右上角的静音键。
+export { Mail as LetterIcon, Volume2 as LetterSoundIcon, VolumeX as LetterMutedIcon } from "lucide-react";
 
 // 对话列表页首铃铛旁边的服务状态（GLOSSARY.md「服务状态」）。
 export { Activity as ServiceStatusIcon } from "lucide-react";
@@ -66,15 +68,28 @@ export { History as PastConversationsIcon, SquarePen as NewConversationIcon } fr
 // 后台用户列表可以排序的表头：按它从多到少排着的，和还没按它排的（shadcn-redesign 22）。
 export { ArrowDown as SortedIcon, ArrowUpDown as SortableIcon } from "lucide-react";
 
+// 她的气泡菜单里的「朗读」，和下面语音条的播放、暂停（GLOSSARY.md「朗读」）。
+export { Pause as PauseVoiceIcon, Play as PlayVoiceIcon, Volume2 as ReadAloudIcon } from "lucide-react";
+
 // 通话层右上角的「只看文字」胶囊。
 export { Captions as TextOnlyIcon } from "lucide-react";
 
 // 通话层底栏的打字键：点了底栏换成输入栏。
 export { Keyboard as TypingIcon } from "lucide-react";
 
-// 导航栏（电脑）和 dock（手机）的三项；玩法页第一级「礼物」卡的图标也是 GiftIcon（「成就」卡用 AchievementsIcon）。
-export { MessageCircle as ConversationsIcon, Settings as SettingsIcon, Shapes as PlayIcon } from "lucide-react";
+// 导航栏（电脑）和 dock（手机）的四项（朋友圈开着时）；玩法页第一级「礼物」卡的图标也是 GiftIcon（「成就」卡用 AchievementsIcon）。
+export {
+  Aperture as MomentsIcon,
+  MessageCircle as ConversationsIcon,
+  Settings as SettingsIcon,
+  Shapes as PlayIcon,
+} from "lucide-react";
 export { Gift as GiftIcon } from "lucide-react";
+
+// 朋友圈页一条动态下面那一块里，赞的人那一行打头的心形；也是行尾「⋯」弹出的「赞」。
+export { Heart as LikesIcon } from "lucide-react";
+// 朋友圈页行尾「⋯」弹出的「评论」。
+export { MessageCircle as CommentIcon } from "lucide-react";
 
 // 日历：玩法页第一级「日历」卡；筛选、月视图和这一天的清单里我的生日（蛋糕，角色生日的蛋糕是她的颜色）和节假日（旗子）。
 export { CalendarDays as CalendarIcon } from "lucide-react";

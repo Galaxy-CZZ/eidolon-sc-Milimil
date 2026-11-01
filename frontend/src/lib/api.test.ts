@@ -11,6 +11,7 @@ import {
   json,
   logout,
   logoutEverywhere,
+  readAloud,
   redirectFor,
   sendTurn,
   type TurnEvent,
@@ -178,6 +179,24 @@ describe("sendTurn", () => {
     expect(init.method).toBe("POST");
     expect(JSON.parse(init.body as string)).toEqual({ text: "おはよう", own_keys: { llm } });
     expect(JSON.parse(fetch.mock.calls[1][1].body as string)).toEqual({ text: "おはよう" });
+  });
+
+  it("names the model of the user's own key for speech synthesis, but brings not the key", async () => {
+    const tts = { api_key: "fish-my-own-key", model: "drama-3" };
+    const items = new Map([["eidolon.ownKeys.u1", JSON.stringify({ tts })]]);
+    vi.stubGlobal("localStorage", { getItem: (key: string) => items.get(key) ?? null });
+    const fetch = answerWith([]);
+
+    await events("c1", "おはよう", "u1");
+    items.set("eidolon.ownKeys.u1", JSON.stringify({ tts: { api_key: "fish-my-own-key" } }));
+    await events("c1", "おはよう", "u1");
+
+    expect(JSON.parse(fetch.mock.calls[0][1].body as string)).toEqual({ text: "おはよう", read_aloud_model: "drama-3" });
+    // Kept before models could be chosen: the free one.
+    expect(JSON.parse(fetch.mock.calls[1][1].body as string)).toEqual({
+      text: "おはよう",
+      read_aloud_model: "s2.1-pro-free",
+    });
   });
 
   it("yields each event once its frame is complete, however the stream is split", async () => {
@@ -360,5 +379,44 @@ describe("signing out and deleting the account", () => {
     await expect(logout("u1")).rejects.toThrow();
 
     expect(localOwnKeys("u1")).toEqual({ tts: { api_key: "fish-my-own-key-aaaa" } });
+  });
+});
+
+describe("readAloud", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("asks for her reply or reach-out read aloud, bringing the user's own key for speech synthesis alone", async () => {
+    const tts = { api_key: "fish-my-own-key" };
+    const llm = { api_key: "sk-my-own-key-1234", base_url: "https://llm.example.com/v1", model: "m", protocol: "chat-completions" };
+    const items = new Map([["eidolon.ownKeys.u1", JSON.stringify({ llm, tts })]]);
+    vi.stubGlobal("localStorage", { getItem: (key: string) => items.get(key) ?? null });
+    const fetch = vi.fn(async (_path: string, _init: RequestInit) => new Response(new Uint8Array([1, 2, 3])));
+    vi.stubGlobal("fetch", fetch);
+
+    const audio = await readAloud({ conversationId: "c1", kind: "reply", id: 12 }, "u1");
+    await readAloud({ conversationId: "c1", kind: "reach_out", id: 3 }, "u2");
+
+    expect(new Uint8Array(audio)).toEqual(new Uint8Array([1, 2, 3]));
+    const [path, init] = fetch.mock.calls[0];
+    expect(path).toBe("/api/conversations/c1/messages/12/read-aloud");
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(init.body as string)).toEqual({ own_keys: { tts } });
+    expect(fetch.mock.calls[1][0]).toBe("/api/conversations/c1/reach-outs/3/read-aloud");
+    expect(JSON.parse(fetch.mock.calls[1][1].body as string)).toEqual({});
+  });
+
+  it("throws what the backend said when it was not voiced, with its code", async () => {
+    vi.stubGlobal("localStorage", { getItem: () => null });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ detail: "你的语音合成（Fish Audio）密钥调用失败：…", code: "own_key" }, { status: 502 })),
+    );
+
+    const error = await readAloud({ conversationId: "c1", kind: "reply", id: 12 }, "u1").catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error).toMatchObject({ status: 502, code: "own_key", message: "你的语音合成（Fish Audio）密钥调用失败：…" });
   });
 });

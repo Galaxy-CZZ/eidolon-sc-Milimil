@@ -16,6 +16,7 @@ import pytest
 
 from eidolon import data_package
 from eidolon.config import Settings
+from tests.test_producer_profile import NO_CITY
 from tests.conftest import ClientFactory
 from tests.fakes import (
     FakeBackgroundLLM,
@@ -43,7 +44,7 @@ PROFILE = {
 EMPTY_PROFILE = {"form_of_address": None, "gender": None, "timezone": None, "birthday": None}
 NOTHING_ELSE = {
     "conversations": 0, "photos": 0, "memories": 0, "skipped": [], "cycles": 0,
-    "cycles_skipped": 0,
+    "cycles_skipped": 0, "letters": 0, "letters_skipped": 0,
 }
 
 
@@ -120,22 +121,23 @@ async def test_the_producer_profile_moves_to_another_deployment(
     entries, manifest, data = unzipped(package)
     assert [e.filename for e in entries] == ["manifest.json", "data.json"]
     assert entries[0].compress_type == zipfile.ZIP_STORED
-    assert manifest["format"] == 3
+    assert manifest["format"] == 5
     assert manifest["categories"] == ["profile"]
     assert manifest["counts"] == {"profile": 1}
     assert data == {"profile": {
         "form_of_address": "小林", "gender": "female", "timezone": "Asia/Tokyo",
         "birthday_month": 2, "birthday_day": 29,
+        "city": None,
     }}
 
     res = await import_package(there, package, "profile")
 
     assert res.status_code == 200, res.text
     assert res.json() == {**NOTHING_ELSE, "profile": True}
-    assert (await there.get("/api/profile")).json() == PROFILE
+    assert (await there.get("/api/profile")).json() == {**PROFILE, **NO_CITY}
     again = await import_package(there, package, "profile")
     assert again.json() == {**NOTHING_ELSE, "profile": False}  # the same as it was: nothing new
-    assert (await there.get("/api/profile")).json() == PROFILE
+    assert (await there.get("/api/profile")).json() == {**PROFILE, **NO_CITY}
 
 
 async def test_a_profile_left_unset_in_the_package_clears_the_one_here(
@@ -150,11 +152,12 @@ async def test_a_profile_left_unset_in_the_package_clears_the_one_here(
     assert data == {"profile": {
         "form_of_address": None, "gender": None, "timezone": None,
         "birthday_month": None, "birthday_day": None,
+        "city": None,
     }}
     res = await import_package(there, package, "profile")
 
     assert res.json()["profile"] is True
-    assert (await there.get("/api/profile")).json() == EMPTY_PROFILE
+    assert (await there.get("/api/profile")).json() == {**EMPTY_PROFILE, **NO_CITY}
 
 
 async def test_categories_left_out_are_neither_exported_nor_imported(
@@ -217,9 +220,9 @@ async def test_a_package_from_a_newer_version_is_refused_whatever_its_entries(
     make_client: ClientFactory,
 ):
     client = make_client(FakeLLM())
-    newer = json.dumps({**MANIFEST, "format": 4, "categories": ["albums"]})
+    newer = json.dumps({**MANIFEST, "format": 6, "categories": ["albums"]})
     packages = {
-        "entries as now": package_of({**MANIFEST, "format": 4, "categories": ["albums"]}, {}),
+        "entries as now": package_of({**MANIFEST, "format": 6, "categories": ["albums"]}, {}),
         "no data.json, entries of its own": _zip(
             {"manifest.json": newer, "albums.json": "{}", "albums/1.json": "{}"}
         ),
@@ -231,7 +234,7 @@ async def test_a_package_from_a_newer_version_is_refused_whatever_its_entries(
 
         assert res.status_code == 422, case
         assert res.json()["code"] == "too_new", case
-    assert (await client.get("/api/profile")).json() == EMPTY_PROFILE
+    assert (await client.get("/api/profile")).json() == {**EMPTY_PROFILE, **NO_CITY}
 
 
 async def test_a_broken_package_is_refused_and_nothing_is_imported(make_client: ClientFactory):
@@ -259,7 +262,7 @@ async def test_a_broken_package_is_refused_and_nothing_is_imported(make_client: 
 
         assert res.status_code == 422, case
         assert res.json()["code"] == "broken", case
-    assert (await client.get("/api/profile")).json() == EMPTY_PROFILE
+    assert (await client.get("/api/profile")).json() == {**EMPTY_PROFILE, **NO_CITY}
 
 
 def remembering(
@@ -434,7 +437,7 @@ async def test_a_package_too_large_is_refused_at_once_and_nothing_is_imported(
 
     assert res.status_code == 413
     assert res.json()["code"] == "too_large"
-    assert (await client.get("/api/profile")).json() == EMPTY_PROFILE
+    assert (await client.get("/api/profile")).json() == {**EMPTY_PROFILE, **NO_CITY}
 
 
 async def test_a_package_too_large_is_refused_without_waiting_for_the_rest_of_it(
@@ -458,7 +461,7 @@ async def test_a_package_too_large_is_refused_without_waiting_for_the_rest_of_it
     assert res.status_code == 413
     assert res.json()["code"] == "too_large"
     assert sent < 1000
-    assert (await client.get("/api/profile")).json() == EMPTY_PROFILE
+    assert (await client.get("/api/profile")).json() == {**EMPTY_PROFILE, **NO_CITY}
 
 
 async def test_a_package_unzipping_too_large_is_refused_as_broken(

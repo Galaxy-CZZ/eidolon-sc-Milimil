@@ -259,6 +259,7 @@ function shown(name: ItemName, field: string, value: FieldRow["env"]): string {
   if (field === "api_format") return t.imageFormats[String(value)] ?? String(value);
   if (name === "tts" && field === "model") return optionLabel(name, field, String(value));
   if (name === "registration") return optionLabel(name, field, String(value));
+  if (name === "moments" && field === "map") return optionLabel(name, field, String(value));
   if (name === "limits" && value === 0) return t.unlimited;
   if (field === "window_minutes") return t.minutes(String(value));
   return String(value);
@@ -290,6 +291,7 @@ function fieldHint(name: ItemName, spec: FieldSpec, keysEditable: boolean, item?
 
 function optionLabel(name: ItemName, field: string, option: string): string {
   if (name === "registration") return t.registrations[option] ?? option;
+  if (name === "moments" && field === "map") return t.mapSites[option] ?? option;
   if (field === "protocol") return t.protocols[option as LLMProtocol] ?? option;
   if (field === "api_format") return t.imageFormats[option] ?? option;
   if (field === "region") return t.regions[option] ?? option;

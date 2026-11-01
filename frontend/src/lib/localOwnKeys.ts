@@ -197,6 +197,19 @@ export function turnOwnKeys(
   return { ...(llm && { llm, ...(memory_llm && { memory_llm }) }), ...(image && { image }) };
 }
 
+/** 朗读（GLOSSARY.md「朗读」）要带的 `own_keys`：只带这位用户存的语音合成那一把，没存就不带。 */
+export function readAloudOwnKeys(userId: string): Pick<LocalOwnKeys, "tts"> | undefined {
+  const { tts } = localOwnKeys(userId);
+  return tts && { tts };
+}
+
+/** 这位用户存的语音合成 key 用哪个模型（没选是免费的那个），没存就没有：文字回合只带这个名字、不带 key，
+ * 她按朗读会用的模型写语气提示。 */
+export function readAloudModel(userId: string): FishAudioModel | undefined {
+  const { tts } = localOwnKeys(userId);
+  return tts && (tts.model ?? DEFAULT_FISH_AUDIO_MODEL);
+}
+
 /** 存了 key 的那几项服务：通话预检时只报这些服务名，不带 key；也是判断计不计入限额的依据。 */
 export function ownServices(keys: LocalOwnKeys): OwnService[] {
   return OWN_SERVICES.filter((service) => keys[service] !== undefined);

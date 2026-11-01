@@ -8,13 +8,14 @@ import { opensNewTab, useDirectory } from "@/components/conversations/Conversati
 import { Button } from "@/components/ui/button";
 import { copy } from "@/i18n";
 import { hasUnseen } from "@/lib/conversationList";
-import { currentNavItem, FIRST_LEVEL, isTyping, NAV_ITEMS, navDestination, navDots, type NavItem } from "@/lib/navShell";
+import { currentNavItem, FIRST_LEVEL, isTyping, navDestination, navDots, navItems, type NavItem } from "@/lib/navShell";
 import { REPOSITORY_URL } from "@/lib/repository";
 import { cn } from "@/lib/utils";
-import { ConversationsIcon, GitHubIcon, PlayIcon, SettingsIcon } from "@/theme/icons";
+import { ConversationsIcon, GitHubIcon, MomentsIcon, PlayIcon, SettingsIcon } from "@/theme/icons";
 
 const ICONS: Record<NavItem, typeof SettingsIcon> = {
   conversations: ConversationsIcon,
+  moments: MomentsIcon,
   play: PlayIcon,
   settings: SettingsIcon,
 };
@@ -22,11 +23,12 @@ const ICONS: Record<NavItem, typeof SettingsIcon> = {
 /** 带点时读屏读的名字。 */
 const DOTTED: Partial<Record<NavItem, string>> = {
   conversations: copy.nav.conversationsUnseen,
+  moments: copy.nav.momentsUnseen,
   play: copy.nav.playRewarded,
 };
 
 /**
- * 导航栏（电脑）：最左一条 72px，右边一条细线，不能收起；对话、玩法、设置从上往下，GitHub 仓库链接在最底下
+ * 导航栏（电脑）：最左一条 72px，右边一条细线，不能收起；对话、朋友圈、玩法、设置从上往下（账号里没有朋友圈时没有这一项），GitHub 仓库链接在最底下
  * （DESIGN.md「Layout」）。窄屏由 CSS 藏起来，换成 dock。通话层只盖住它右边，展开时它照样能点（见 NavLinks）。
  */
 export function NavRail() {
@@ -76,15 +78,16 @@ export function NavDock({ isInert }: { isInert: boolean }) {
  * 标 `aria-current="page"`。点别的项去那一项的第一级；在二级页面上（她的对话页）再点当前项回到第一级，已在第一级时不动。
  * 通话层展开着（只有电脑上点得到，手机上它盖住 dock）时先收起，结束卡就放下，通话照常，去处顶上是通话条。
  * 对话列表里有一行有没看过的搭话（正开着的那段对话除外）时，「对话」图标右上角一个前景色的小点，和公告铃铛上的一样；
- * 有新到的抽奖次数（lib/rewards）时「玩法」上同样一个点，在玩法页的任何一级上都不出（卡片上的点说是哪张卡）。
+ * 有新到的抽奖次数（lib/rewards）时「玩法」上同样一个点，在玩法页的任何一级上都不出（卡片上的点说是哪张卡）；
+ * 上次打开朋友圈以后露出了新动态或她的回复（`newMoments`）时「朋友圈」上同样一个点，在朋友圈页上不出。
  */
 function NavLinks({ className }: { className: string }) {
   const pathname = usePathname();
-  const { guard, held, characters, latest, preferences, onScreen, newRewards } = useDirectory();
+  const { guard, held, account, characters, latest, preferences, onScreen, newRewards, newMoments } = useDirectory();
   const current = currentNavItem(pathname);
   const unseen = characters !== null && hasUnseen(characters, latest, { preferences, onScreen });
-  const dots = navDots(current, { conversations: unseen, rewards: newRewards });
-  return NAV_ITEMS.map((item) => {
+  const dots = navDots(current, { conversations: unseen, rewards: newRewards, moments: newMoments });
+  return navItems(account?.moments).map((item) => {
     const Icon = ICONS[item];
     const isCurrent = item === current;
     const onClick = (event: MouseEvent<HTMLAnchorElement>) => {

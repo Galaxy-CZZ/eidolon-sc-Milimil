@@ -1,7 +1,8 @@
 """Housekeeping: what the backend deletes as it ages, everyone's at once, every `TICK` from
-when it starts: uses of the limits a day old (`usage.KEPT`), and activity records and
-service calls 90 days old (`activity.KEPT`), with their rollups. Not as each turn begins,
-which would keep it waiting on deleting.
+when it starts: uses of the limits a day old (`usage.KEPT`), activity records and service
+calls 90 days old (`activity.KEPT`), with their rollups, and moments 30 days old
+(`moments.KEPT`), with what goes with them, and the moments planned and missed. Not as
+each turn begins, which would keep it waiting on deleting.
 
 Each is deleted in batches (`in_batches`), each a write task of its own (ADR-0028), so that
 other writes are let in between: what piled up while the backend was down, a day's at once,

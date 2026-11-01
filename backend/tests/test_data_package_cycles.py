@@ -67,7 +67,7 @@ async def test_records_go_into_a_package_with_their_category_alone(
     _, manifest, data = unzipped(await export(client, "conversations,cycles"))
     _, without_manifest, without = unzipped(await export(client, "conversations"))
 
-    assert manifest["format"] == 3
+    assert manifest["format"] == 5
     assert manifest["categories"] == ["conversations", "cycles"]
     assert manifest["counts"] == {"conversations": 0, "cycles": 3}
     assert data["cycles"] == [

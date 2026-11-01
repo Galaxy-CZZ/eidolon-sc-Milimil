@@ -3,8 +3,10 @@
 It is configuration, not data, as the gift catalog is: the maintainer keeps it in the
 repository, and neither `.env` nor the admin console changes it. Each job has its
 identifier, its name and a line saying what it is (both shown on the calendar, and what she
-goes by), its category, how many slots it takes (`length`), and which slots it may be in,
-if not any. A job of a whole day may only start in the morning, so it may name no slots.
+goes by), its category, how many slots it takes (`length`), which slots it may be in, if
+not any, and the kinds of place it takes her to, if any (checked against the place pool's by
+`place_pool.check_job_places`). A job of a whole day may only start in the morning, so it may
+name no slots.
 Each week's jobs are drawn from it (`schedule`) and kept as they were then, so changing it
 changes only the weeks not yet published.
 
@@ -49,6 +51,9 @@ class ListedJob:
     """How many slots in a row it takes, 1 to 3."""
     slots: tuple[Slot, ...] | None = None
     """The slots it may be in; None for any."""
+    places: tuple[str, ...] | None = None
+    """The kinds of place it takes her to (`place_pool.Category`), or `nearby` for anywhere
+    in the outskirts; None for none to name in her moment."""
 
 
 def jobs_path(characters_path: Path) -> Path:
@@ -103,4 +108,12 @@ def _parse_job(entry: object) -> ListedJob:
         if length == len(SLOTS):
             raise JobListError(f"工作 {id} 占一整天，只能从上午排，不能再限定时段")
         slots = tuple(s for s in SLOTS if s in listed)
-    return ListedJob(id, entry["name"], entry["note"], category, length, slots)
+    places = entry.get("places")
+    if places is not None and (
+        not isinstance(places, list) or not all(isinstance(p, str) for p in places)
+    ):
+        raise JobListError(f"工作 {id} 的 places 应当是地点类别的列表")
+    return ListedJob(
+        id, entry["name"], entry["note"], category, length, slots,
+        tuple(places) if places is not None else None,
+    )

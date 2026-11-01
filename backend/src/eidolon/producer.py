@@ -20,12 +20,17 @@ from functools import cache
 from typing import Literal
 from zoneinfo import ZoneInfo, available_timezones
 
+from eidolon.weather import Spot, Weather, weather_line
+
 Gender = Literal["male", "female"]
 Talking = Literal["typing", "in_call", "apart"]
 """How the user and she are talking now: typing, in a call, or not at all."""
 
 DEFAULT_TIMEZONE = "Asia/Shanghai"
+_TOKYO = ZoneInfo("Asia/Tokyo")
 MAX_FORM_OF_ADDRESS_LENGTH = 20
+MAX_CITY_PART_LENGTH = 40
+"""How long each part of a city's name may be, in characters."""
 
 _GENDER_NAMES: dict[Gender, str] = {"male": "男性", "female": "女性"}
 _WEEKDAYS = "一二三四五六日"
@@ -60,11 +65,47 @@ def is_birthday(birthday: Birthday, today: date) -> bool:
 
 
 @dataclass(frozen=True)
+class City:
+    """A city, a district or a county, as QWeather names it in Chinese: its `name`, the city
+    it is in (`adm2`), the province or the like (`adm1`), the country, and where it is, in
+    WGS-84."""
+
+    name: str
+    adm2: str
+    adm1: str
+    country: str
+    latitude: float
+    longitude: float
+
+    def parts(self) -> list[str]:
+        """Its name, then each of what it is in that is not as good as said already (东城,
+        北京, 中国 for 东城 in 北京 in 北京市)."""
+        kept: list[str] = []
+        for part in (self.name, self.adm2, self.adm1, self.country):
+            if part and not any(k.startswith(part) or part.startswith(k) for k in kept):
+                kept.append(part)
+        return kept
+
+    @property
+    def told(self) -> str:
+        """How she is told it: 东城（北京，中国）."""
+        name, *rest = self.parts()
+        return f"{name}（{'，'.join(rest)}）" if rest else name
+
+    @property
+    def spot(self) -> Spot:
+        return Spot(self.latitude, self.longitude)
+
+
+@dataclass(frozen=True)
 class ProducerProfile:
     form_of_address: str | None = None
     gender: Gender | None = None
     timezone: str | None = None
     birthday: Birthday | None = None
+    city: City | None = None
+    """Where the producer is, as QWeather found it; she knows of it only while the deployer
+    has a QWeather account (`qweather`)."""
 
 
 @cache
@@ -127,6 +168,10 @@ _BIRTHDAY = (
     "今天是制作人的生日。请在合适的时候用你自己的方式祝福一次：先回应制作人说的话，不要每句都提。"
 )
 _BIRTHDAY_APART = "今天是制作人的生日。今天还没祝福过的话，用你自己的方式祝福一次。"
+_POSTING = "你这会儿在发朋友圈，制作人没在和你说话。"
+_BIRTHDAY_POSTING = "今天是制作人的生日（按他那边的日期）。想的话，这条可以祝他生日快乐。"
+_REPLYING = "你这会儿在看自己朋友圈下面的评论，制作人没在和你说话。"
+_BIRTHDAY_REPLYING = "今天是制作人的生日（按他那边的日期）。"
 
 
 def _how_long(gap: timedelta) -> str:
@@ -170,5 +215,32 @@ def now_prompt(
         )
     if profile.birthday and is_birthday(profile.birthday, local.date()):
         lines.append(_BIRTHDAY_APART if talking == "apart" else _BIRTHDAY)
+    lines += affinity_lines
+    return "\n".join(lines)
+
+
+def posting_now_prompt(
+    profile: ProducerProfile,
+    now: datetime,
+    timezone: str,
+    affinity_lines: Sequence[str] = (),
+    weather: Weather | None = None,
+    replying: bool = False,
+) -> str:
+    """The prompt section about now as she posts a moment (GLOSSARY.md「朋友圈」), or is
+    `replying` to the producer's comment on one: the time in Tokyo, where she lives and posts,
+    never when they were last in touch; Tokyo's `weather`, if known; whether it is the
+    producer's birthday, in their own `timezone`; then `affinity_lines`."""
+    local = now.astimezone(_TOKYO)
+    lines = [
+        "# 此刻",
+        f"现在是 {local.year}年{local.month}月{local.day}日"
+        f"（星期{_WEEKDAYS[local.weekday()]}）{local:%H:%M}（东京时间）。",
+        _REPLYING if replying else _POSTING,
+    ]
+    if weather is not None:
+        lines.append(weather_line(weather))
+    if profile.birthday and is_birthday(profile.birthday, local_date(now, timezone)):
+        lines.append(_BIRTHDAY_REPLYING if replying else _BIRTHDAY_POSTING)
     lines += affinity_lines
     return "\n".join(lines)

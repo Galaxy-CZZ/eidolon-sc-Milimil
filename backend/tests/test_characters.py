@@ -1,5 +1,5 @@
 """Characters come from configuration: the list, the avatars, the image colours, call
-backgrounds, stands and greetings, and each one's character sheet."""
+backgrounds, signatures, stands and greetings, and each one's character sheet."""
 
 import json
 import logging
@@ -13,7 +13,8 @@ from eidolon.characters import CharacterConfigError, Fact, load_characters, pars
 from eidolon.config import Settings, stand_assets_url_from_env
 from eidolon.producer import Birthday
 from tests.conftest import (
-    AVATAR, BACKGROUND, KOGANE_SHEET, MANO_SHEET, SCSP_AVATAR, CharacterConfig, ClientFactory,
+    AVATAR, BACKGROUND, KOGANE_SHEET, MANO_SHEET, SCSP_AVATAR, SIGNATURE, CharacterConfig,
+    ClientFactory,
 )
 from tests.fakes import FakeLLM
 from tests.test_text_turn import send_turn, start_conversation
@@ -40,6 +41,7 @@ async def test_character_list_shows_name_intro_avatar_colour_and_background_but_
             "color": "#ffbad6",
             "birthday": "04-25",
             "background_url": "/api/characters/mano/background",
+            "signature_url": "/api/characters/mano/signature",
             "stand": None,  # no stand assets URL is configured
             "idol_id": 1,
             "short_name": None,  # none configured
@@ -63,6 +65,7 @@ async def test_character_list_shows_name_intro_avatar_colour_and_background_but_
             "color": "#f84cad",
             "birthday": "02-25",
             "background_url": None,
+            "signature_url": None,
             "stand": None,
             "idol_id": None,
             "short_name": None,
@@ -161,7 +164,22 @@ async def test_call_background_is_served_without_a_session_like_the_avatar(
     assert (await client.get("/api/characters/nobody/background")).status_code == 404
 
 
-@pytest.mark.parametrize("picture", ["avatar", "scsp-avatar", "background"])
+async def test_signature_is_served_without_a_session_like_the_avatar(
+    make_client: ClientFactory,
+):
+    client = make_client(FakeLLM(), user=None)
+
+    res = await client.get("/api/characters/mano/signature")
+
+    assert res.status_code == 200
+    assert res.content == SIGNATURE
+    # Python 3.11 guesses no type for .webp, nor does a slim image without /etc/mime.types.
+    assert res.headers["content-type"] == "image/webp"
+    assert (await client.get("/api/characters/kogane/signature")).status_code == 404
+    assert (await client.get("/api/characters/nobody/signature")).status_code == 404
+
+
+@pytest.mark.parametrize("picture", ["avatar", "scsp-avatar", "background", "signature"])
 async def test_avatar_and_background_are_cached_by_the_browser_and_revalidated_by_etag(
     make_client: ClientFactory, picture: str
 ):
@@ -325,6 +343,8 @@ def test_repository_configures_its_characters_with_their_voices():
         "hazuki": ("はづき",),
     }
     assert all(c.sheet and c.facts and c.avatar and c.scsp_avatar for c in loaded.values())  # committed (ADR-0003)
+    # The 28 from the farewell letters; はづき never had one, and signs in the letter's hand.
+    assert {id for id, c in loaded.items() if c.signature is None} == {"hazuki"}
     assert {id: c.color for id, c in loaded.items()} == {
         "mano": "#ffbad6",
         "hiori": "#144384",

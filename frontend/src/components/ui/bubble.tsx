@@ -37,7 +37,8 @@ const bubbleVariants = cva(
         // eidolon: 对话页的两种气泡（DESIGN.md「Chat bubbles」）：22px 圆角、没有尾巴、不投影。
         // 她的：浅色白底、深色 her-bubble-night，最宽 min(30rem, 72vw)；制作人的：事务所深蓝墨水，最宽 72%。
         // 字号由气泡里的内容自己定（原文和字幕字号不同）。
-        her: "max-w-[min(30rem,72vw)] *:data-[slot=bubble-content]:rounded-bubble *:data-[slot=bubble-content]:bg-bubble-her *:data-[slot=bubble-content]:px-4 *:data-[slot=bubble-content]:text-foreground",
+        // 她的气泡能拿到焦点时（键盘打开「朗读」菜单，GLOSSARY.md「朗读」），焦点环画在内容那一块上，跟着气泡的圆角。
+        her: "max-w-[min(30rem,72vw)] outline-none *:data-[slot=bubble-content]:rounded-bubble *:data-[slot=bubble-content]:bg-bubble-her *:data-[slot=bubble-content]:px-4 *:data-[slot=bubble-content]:text-foreground focus-visible:*:data-[slot=bubble-content]:ring-3 focus-visible:*:data-[slot=bubble-content]:ring-ring/50",
         producer:
           "max-w-[72%] *:data-[slot=bubble-content]:rounded-bubble *:data-[slot=bubble-content]:bg-producer-ink *:data-[slot=bubble-content]:px-4 *:data-[slot=bubble-content]:text-on-producer-ink",
       },

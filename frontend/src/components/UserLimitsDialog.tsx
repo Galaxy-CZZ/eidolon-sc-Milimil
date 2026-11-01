@@ -47,7 +47,7 @@ const NOTE_MAX = 500;
 const COUNT_MAX = 100_000;
 
 /**
- * 设定或修改一位用户的单独限额：每小时的回合数、通话次数、照片数和光顾次数各自选「跟随全站 / 设定次数 / 不限 /
+ * 设定或修改一位用户的单独限额：每小时的回合数、通话次数、照片数、光顾次数和朗读次数各自选「跟随全站 / 设定次数 / 不限 /
  * 只能用自带密钥」，次数从 1 起；附一句只有管理者看得到的备注。「只能用自带密钥」是单列的一项，
  * 不再让人填 0：全站限额里 0 是不限，同一个数字两处意思相反容易配错。`user` 为 null 时对话框关着；
  * 保存成功后把后端返回的这位用户交给 `onSaved`。保存是表单的提交，用 default（DESIGN.md「Buttons」）。
@@ -65,15 +65,17 @@ export function UserLimitsDialog({
   const [calls, setCalls] = useState<LimitDraft>(limitDraft(null));
   const [photos, setPhotos] = useState<LimitDraft>(limitDraft(null));
   const [visits, setVisits] = useState<LimitDraft>(limitDraft(null));
+  const [readAlouds, setReadAlouds] = useState<LimitDraft>(limitDraft(null));
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<Failure | null>(null);
-  /** 全站现在的每小时回合数、通话次数、照片数和光顾次数（配置页「限额」一项当前生效的值）；读不到时选项只写「跟随全站」。 */
+  /** 全站现在的每小时回合数、通话次数、照片数、光顾次数和朗读次数（配置页「限额」一项当前生效的值）；读不到时选项只写「跟随全站」。 */
   const [site, setSite] = useState<{
     turns: number;
     calls: number;
     photos: number | null;
     visits: number | null;
+    readAlouds: number | null;
   } | null>(null);
   /** 全站现在的免限额密钥（同一项里的三个开关）；读不到时「只能用自带密钥」的说明不点名。 */
   const [exemptingKeys, setExemptingKeys] = useState<OwnService[] | null>(null);
@@ -93,6 +95,7 @@ export function UserLimitsDialog({
           calls_per_hour: calls,
           photos_per_hour: photos,
           visits_per_hour: visits,
+          read_alouds_per_hour: readAlouds,
         } = limits.effective;
         if (typeof turns === "number" && typeof calls === "number") {
           setSite({
@@ -100,6 +103,7 @@ export function UserLimitsDialog({
             calls,
             photos: typeof photos === "number" ? photos : null,
             visits: typeof visits === "number" ? visits : null,
+            readAlouds: typeof readAlouds === "number" ? readAlouds : null,
           });
         }
       },
@@ -117,12 +121,13 @@ export function UserLimitsDialog({
     setCalls(limitDraft(user.limits?.calls_per_hour ?? null));
     setPhotos(limitDraft(user.limits?.photos_per_hour ?? null));
     setVisits(limitDraft(user.limits?.visits_per_hour ?? null));
+    setReadAlouds(limitDraft(user.limits?.read_alouds_per_hour ?? null));
     setNote(user.limits?.note ?? "");
     setFailure(null);
     check.reset();
   }, [user]);
 
-  const result = limitsInput(turns, calls, photos, visits);
+  const result = limitsInput({ turns, calls, photos, visits, readAlouds });
   // 不先报错、保存键不变灰：点过一次保存才标出不对的项（见 useSubmitCheck）。
   const problemOf = (field: LimitProblem["field"]) =>
     check.shown && "problems" in result ? result.problems.filter((p) => p.field === field) : [];
@@ -194,6 +199,14 @@ export function UserLimitsDialog({
               site={site?.visits ?? null}
               ownKeysHint={t.visitsOwnKeysHint}
               problems={problemOf("visits")}
+            />
+            <LimitField
+              label={t.readAlouds}
+              draft={readAlouds}
+              onChange={setReadAlouds}
+              site={site?.readAlouds ?? null}
+              ownKeysHint={t.readAloudsOwnKeysHint}
+              problems={problemOf("readAlouds")}
             />
             <Field>
               <FieldLabel htmlFor={noteId}>{t.note}</FieldLabel>

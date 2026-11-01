@@ -120,12 +120,12 @@ async def test_voice_calls_have_their_own_hourly_limit_and_renegotiating_is_free
 def test_limits_come_from_the_environment(monkeypatch: pytest.MonkeyPatch):
     for name in [
         "TURNS_PER_HOUR", "CALLS_PER_HOUR", "CALL_MINUTES", "TURNS_PER_CALL", "PHOTOS_PER_HOUR",
-        "CONCURRENT_CALLS", "VISITS_PER_HOUR",
+        "CONCURRENT_CALLS", "VISITS_PER_HOUR", "READ_ALOUDS_PER_HOUR",
     ]:
         monkeypatch.delenv(f"EIDOLON_{name}", raising=False)
     assert UsageLimits.from_env() == UsageLimits(
         turns_per_hour=60, calls_per_hour=5, call_minutes=10, turns_per_call=40,
-        photos_per_hour=5, concurrent_calls=10, visits_per_hour=5,
+        photos_per_hour=5, concurrent_calls=10, visits_per_hour=5, read_alouds_per_hour=60,
     )
 
     monkeypatch.setenv("EIDOLON_TURNS_PER_HOUR", "30")
@@ -135,9 +135,10 @@ def test_limits_come_from_the_environment(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("EIDOLON_PHOTOS_PER_HOUR", "2")
     monkeypatch.setenv("EIDOLON_CONCURRENT_CALLS", "0")
     monkeypatch.setenv("EIDOLON_VISITS_PER_HOUR", "3")
+    monkeypatch.setenv("EIDOLON_READ_ALOUDS_PER_HOUR", "4")
     assert UsageLimits.from_env() == UsageLimits(
         turns_per_hour=30, calls_per_hour=None, call_minutes=15, turns_per_call=None,
-        photos_per_hour=2, concurrent_calls=None, visits_per_hour=3,
+        photos_per_hour=2, concurrent_calls=None, visits_per_hour=3, read_alouds_per_hour=4,
     )
 
     monkeypatch.setenv("EIDOLON_CALLS_PER_HOUR", "-1")

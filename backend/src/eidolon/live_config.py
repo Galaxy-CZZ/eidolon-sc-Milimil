@@ -3,7 +3,8 @@ what admins change in the admin console (ADR-0013). It is the admin console's on
 read and change the configuration.
 
 The configuration is in items, each a few fields saved and restored together: the chat
-and memory models, speech synthesis and recognition, image generation (`_Image`), the
+and memory models, speech synthesis and recognition, image generation (`_Image`) and GPT
+Image beside it (`_GptImage`), the
 judge model and its thresholds,
 the reranker's thresholds, and the limits (per hour, per call, and the turns each prompt
 carries, with the exempting keys), whether affinity and gifts are on, whether characters
@@ -64,6 +65,10 @@ from eidolon.characters import Character
 from eidolon.clock import Clock
 from eidolon.config import (
     CLOUDFLARE_JUDGE_MODELS,
+    DEFAULT_MAP_SITE,
+    DEFAULT_MOMENT_REPLIES_PER_DAY,
+    DEFAULT_MOMENTS_PER_DAY,
+    MAP_SITES,
     DEFAULT_REACH_OUTS_PER_DAY,
     DEFAULT_BAILIAN_JUDGE_REGION,
     ChatModelSettings,
@@ -71,6 +76,7 @@ from eidolon.config import (
     FISH_AUDIO_MODELS,
     BailianJudgeSettings,
     CloudflareJudgeSettings,
+    GptImageSettings,
     ImageSettings,
     JevSettings,
     JudgeSettings,
@@ -84,6 +90,10 @@ from eidolon.config import (
     STATUS_WINDOWS,
     ProxiedService,
     ProxySettings,
+    QWEATHER_FIELDS,
+    QWeatherSettings,
+    qweather_host,
+    MomentSettings,
     ReachOutSettings,
     Registration,
     Service,
@@ -104,8 +114,11 @@ from eidolon.affinity_judge import ModelAffinityJudge
 from eidolon.emotion import EmotionJudging, ModelEmotionJudge
 from eidolon.image_generation import (
     GENERATION_TIMEOUT,
+    GPT_GENERATION_TIMEOUT,
+    GptImageGenerator,
     ImageFailed,
     ImageGenerator,
+    try_gpt_image,
     try_image_service,
 )
 from eidolon.judge import (
@@ -121,6 +134,7 @@ from eidolon.judge import (
 from eidolon.llm import ChatLLM, ChatModels, LLMError
 from eidolon.llm.providers import check_chat_llm, check_chat_models
 from eidolon.own_keys import DeployerKeys, DeployerLease, KeyCheck, OwnKeyRejected
+from eidolon.qweather import QWeather, QWeatherFailed, private_key_body
 from eidolon.proxy import ProxyRoutes, Unreachable, reach as reach_provider
 from eidolon.rerank import DEFAULT_THRESHOLDS, RerankThresholds, thresholds_for
 from eidolon.retrieval import ModelRetrievalJudge, Need
@@ -138,16 +152,20 @@ MEMORY_LLM = "memory_llm"
 TTS = "tts"
 STT = "stt"
 IMAGE = "image"
+GPT_IMAGE = "gpt_image"
 JUDGE = "judge"
 JUDGE_THRESHOLDS = "judge_thresholds"
 RERANK = "rerank"
 LIMITS = "limits"
 AFFINITY = "affinity"
 REACH_OUTS = "reach_outs"
+LETTERS = "letters"
+MOMENTS = "moments"
 SCHEDULE = "schedule"
 CYCLES = "cycles"
 BAR = "bar"
 PROXY = "proxy"
+QWEATHER = "qweather"
 SERVICE_STATUS = "service_status"
 REGISTRATION = "registration"
 
@@ -513,6 +531,41 @@ class _Image(_Item):
         return values, None
 
 
+class _GptImage(_Item):
+    """GPT Image (GLOSSARY.md「生图」), for moments' pictures no one is in: where, with which
+    key and model, at which quality, in which art style; off without a key. Tried as image
+    generation is, on one picture of fixed scenery."""
+
+    name = GPT_IMAGE
+    fields = ("base_url", "api_key", "model", "quality", "style")
+    secrets = frozenset({"api_key"})
+
+    def env(self) -> Values:
+        gpt = self.c.settings.gpt_image
+        values = asdict(gpt or GptImageSettings(""))
+        return values | {"api_key": gpt.api_key if gpt else None}
+
+    def normalized(self, change: Values) -> Values:
+        """An address without its trailing slash; an art style left out or empty is the
+        default one."""
+        style = (change.get("style") or "").strip()
+        change = change | {"style": style or GptImageSettings("").style}
+        if "base_url" in change:
+            change["base_url"] = change["base_url"].rstrip("/")
+        return change
+
+    async def tried(self, values: Values) -> tuple[Values, Any]:
+        if values == self.c.effective(self.name):
+            return values, None
+        if not values["api_key"]:
+            raise ConfigRejected("还没有 GPT Image 的 key，请填写")
+        try:
+            await try_gpt_image(GptImageGenerator(_gpt_image(values), self.c._gpt_images))
+        except ImageFailed as e:
+            raise ConfigRejected(e.detail[:MAX_REASON_LENGTH]) from None
+        return values, None
+
+
 class _Judge(_Item):
     name = JUDGE
     fields = ("provider", "api_key", "model", "account_id", "workspace_id", "region", "emotion_timeout")
@@ -637,6 +690,7 @@ LIMIT_LABELS = {
     "calls_per_hour": "每小时通话次数",
     "photos_per_hour": "每小时照片数",
     "visits_per_hour": "每小时光顾次数",
+    "read_alouds_per_hour": "每小时朗读次数",
     "call_minutes": "单次通话的时长上限（分钟）",
     "turns_per_call": "单次通话的回合上限",
     "concurrent_calls": "同时进行的通话数上限",
@@ -677,6 +731,7 @@ class _Limits(_Item):
             "turns_per_call": limits.turns_per_call or 0,
             "concurrent_calls": limits.concurrent_calls or 0,
             "visits_per_hour": limits.visits_per_hour or 0,
+            "read_alouds_per_hour": limits.read_alouds_per_hour or 0,
             "history_turns": self.c.settings.history_turns or 0,
         } | {field: s in exempting for s, field in EXEMPTING_FIELDS.items()}
 
@@ -750,6 +805,98 @@ class _ReachOuts(_Item):
         return current | change
 
 
+class _Letters(_Item):
+    """Whether characters write letters on their occasions (GLOSSARY.md「信」), as `.env` has
+    it (off by default); not tried."""
+
+    name = LETTERS
+    fields = ("enabled",)
+
+    def env(self) -> Values:
+        return {"enabled": self.c.settings.letters}
+
+    def candidate(self, current: Values, change: Values) -> Values:
+        if not isinstance(change.get("enabled"), bool):
+            raise ConfigInvalid(f"信需要是 true 或 false，而不是 {change.get('enabled')!r}")
+        return current | change
+
+
+class _Moments(_Item):
+    """Whether characters post moments (GLOSSARY.md「朋友圈」), as `.env` has it (off by
+    default), how many moments each user may have a day, a whole number from 1 up, which
+    map their places link to, OpenStreetMap by default, and how many of each user's comments
+    a day they reply to, a whole number from 1 up; not tried."""
+
+    name = MOMENTS
+    fields = ("enabled", "per_day", "map", "replies_per_day")
+
+    def env(self) -> Values:
+        return {
+            "enabled": self.c.settings.moments, "per_day": DEFAULT_MOMENTS_PER_DAY,
+            "map": DEFAULT_MAP_SITE, "replies_per_day": DEFAULT_MOMENT_REPLIES_PER_DAY,
+        }
+
+    def candidate(self, current: Values, change: Values) -> Values:
+        if "enabled" in change and not isinstance(change["enabled"], bool):
+            raise ConfigInvalid(f"朋友圈需要是 true 或 false，而不是 {change['enabled']!r}")
+        per_day = change.get("per_day", current["per_day"])
+        if isinstance(per_day, bool) or not isinstance(per_day, int) or per_day < 1:
+            raise ConfigInvalid(f"每位用户每天最多几条动态需要是正整数，而不是 {per_day!r}")
+        if "map" in change and change["map"] not in MAP_SITES:
+            raise ConfigInvalid(f"地图需要是 {'、'.join(MAP_SITES)} 之一，而不是 {change['map']!r}")
+        replies = change.get("replies_per_day", current["replies_per_day"])
+        if isinstance(replies, bool) or not isinstance(replies, int) or replies < 1:
+            raise ConfigInvalid(f"每位用户每天最多回几条评论需要是正整数，而不是 {replies!r}")
+        return current | change
+
+
+class _QWeather(_Item):
+    """The deployer's QWeather account (和风天气), for where the producer is: its own API
+    host, the developer's, the project's and the credential's ids, and the Ed25519 private
+    key, all of them or none (`.env`'s none, to begin with). A change is tried by finding the
+    city at Beijing, unless it changes nothing; it is not tried again as the server starts,
+    QWeather's being no service a turn waits on."""
+
+    name = QWEATHER
+    fields = QWEATHER_FIELDS
+    secrets = frozenset({"private_key"})
+
+    def env(self) -> Values:
+        qweather = self.c.settings.qweather
+        if qweather is None:
+            return dict.fromkeys(QWEATHER_FIELDS)
+        return asdict(qweather) | {"private_key": private_key_body(qweather.private_key)}
+
+    def normalized(self, change: Values) -> Values:
+        """Each as it may be written: the host with or without `https://`, the private key
+        in PEM or its base64 alone, kept as the base64 alone."""
+        change = {
+            f: v.strip() if isinstance(v, str) else v for f, v in change.items()
+        }
+        if isinstance(change.get("host"), str):
+            change["host"] = qweather_host(change["host"])
+        if isinstance(change.get("private_key"), str):
+            change["private_key"] = private_key_body(change["private_key"])
+        return change
+
+    def candidate(self, current: Values, change: Values) -> Values:
+        for field, value in change.items():
+            if not isinstance(value, str) or not value:
+                raise ConfigInvalid(f"和风天气的 {field} 不能为空")
+        return current | change
+
+    async def tried(self, values: Values) -> tuple[Values, Any]:
+        if values == self.c.effective(self.name):
+            return values, None
+        if missing := [f for f in QWEATHER_FIELDS if not values[f]]:
+            raise ConfigRejected(f"和风天气还缺 {'、'.join(missing)}，请填写")
+        try:
+            await self.c.qweather.tried(_qweather(values))
+        except QWeatherFailed as e:
+            raise ConfigRejected(str(e)[:MAX_REASON_LENGTH]) from None
+        return values, None
+
+
 class _Schedule(_Item):
     """Whether each week's jobs are published for producers to schedule (GLOSSARY.md「日程」),
     as `.env` has it (on by default); not tried."""
@@ -807,6 +954,7 @@ PROXY_LABELS: dict[ProxiedService, str] = {
     "tts": "语音合成",
     "stt": "语音识别",
     "image": "生图",
+    "gpt_image": "GPT Image",
     "own_llm": "自带的 LLM",
     "own_tts": "自带的语音合成",
     "own_stt": "自带的语音识别",
@@ -961,17 +1109,24 @@ class LiveConfig:
         routes: ProxyRoutes | None = None,
         reach: Reach = reach_provider,
         image_client: httpx.AsyncClient | None = None,
+        gpt_image_client: httpx.AsyncClient | None = None,
+        qweather_transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
         """The overrides are kept in the database `db` is on. The chat, memory and judge
         models are made by `clients`, each question to the judge model recorded in
         `activity`; `speech` tries the keys for speech synthesis
         and recognition. Each service goes through the proxy or direct as `routes` have
         it, kept to the proxy settings in effect; a change to them is tried by `reach`.
-        Image generation is on `image_client`, by default the routes' for it."""
+        Image generation is on `image_client`, GPT Image on `gpt_image_client`, by default
+        the routes' for each; QWeather is
+        asked over `qweather_transport`, by default its own (`qweather`)."""
         self.settings = settings
         self._clients = clients
         self._routes = routes or ProxyRoutes(settings.proxy)
         self._images = image_client or self._routes.client("image", GENERATION_TIMEOUT)
+        self._gpt_images = gpt_image_client or self._routes.client(
+            "gpt_image", GPT_GENERATION_TIMEOUT
+        )
         self._reach = reach
         self._clock = clock
         self._speech = speech
@@ -981,13 +1136,15 @@ class LiveConfig:
         self._changing = asyncio.Lock()
         self._listeners: list[Callable[[], Awaitable[None]]] = []
         self._rows = db.prepare(_open)
+        self.qweather = QWeather(lambda: self.qweather_settings, clock, qweather_transport)
+        """The deployer's QWeather account as in effect now, for where the producer is."""
         self._items: dict[str, _Item] = {
             item.name: item
             for item in (
                 # The proxy first: as the server starts, the services are tried through it.
                 _Proxy(self), _ChatLLM(self), _MemoryLLM(self), _TTS(self), _STT(self),
-                _Image(self), _Judge(self), _JudgeThresholds(self), _Rerank(self),
-                _Limits(self), _Affinity(self), _ReachOuts(self), _Schedule(self),
+                _Image(self), _GptImage(self), _Judge(self), _JudgeThresholds(self), _Rerank(self),
+                _Limits(self), _Affinity(self), _ReachOuts(self), _Letters(self), _Moments(self), _QWeather(self), _Schedule(self),
                 _Cycles(self), _Bar(self), _ServiceStatus(self), _Registration(self),
             )
         }
@@ -1070,6 +1227,7 @@ class LiveConfig:
             values["photos_per_hour"] or None,
             values["concurrent_calls"] or None,
             values["visits_per_hour"] or None,
+            values["read_alouds_per_hour"] or None,
         )
 
     @property
@@ -1091,6 +1249,27 @@ class LiveConfig:
         most."""
         values = self.effective(REACH_OUTS)
         return ReachOutSettings(values["enabled"], values["per_day"])
+
+    @property
+    def moments(self) -> MomentSettings:
+        """Whether characters post moments now, how many a day each user at most, which map
+        their places link to, and how many of each user's comments a day they reply to at
+        most."""
+        values = self.effective(MOMENTS)
+        return MomentSettings(
+            values["enabled"], values["per_day"], values["map"], values["replies_per_day"]
+        )
+
+    @property
+    def qweather_settings(self) -> QWeatherSettings | None:
+        """The deployer's QWeather account in effect now; None without one."""
+        values = self.effective(QWEATHER)
+        return _qweather(values) if all(values.get(f) for f in QWEATHER_FIELDS) else None
+
+    @property
+    def letters_on(self) -> bool:
+        """Whether characters write letters on their occasions now."""
+        return self.effective(LETTERS)["enabled"]
 
     @property
     def schedule_on(self) -> bool:
@@ -1182,6 +1361,25 @@ class LiveConfig:
         """The deployer's image generation in effect now, to generate on; None without it."""
         settings = self.image_settings
         return None if settings is None else ImageGenerator(settings, self._images)
+
+    @property
+    def gpt_image_settings(self) -> GptImageSettings | None:
+        """GPT Image in effect now; None without its key."""
+        values = self.effective(GPT_IMAGE)
+        return _gpt_image(values) if values["api_key"] else None
+
+    @property
+    def gpt_image_style(self) -> str:
+        """The art style GPT Image draws in now, configured or not."""
+        return self.effective(GPT_IMAGE)["style"]
+
+    def gpt_image_generator(self) -> GptImageGenerator | None:
+        """GPT Image in effect now, to generate moments' pictures no one is in on, only
+        beside the deployer's image generation; None without either."""
+        settings = self.gpt_image_settings
+        if settings is None or self.image_settings is None:
+            return None
+        return GptImageGenerator(settings, self._gpt_images)
 
     @property
     def registration(self) -> Registration:
@@ -1416,6 +1614,7 @@ class LiveConfig:
             await self._delete(JUDGE_THRESHOLDS)
 
     async def aclose(self) -> None:
+        await self.qweather.aclose()
         await self._chat.aclose()
         await self._memory.aclose()
         if self._judge is not None:
@@ -1507,6 +1706,8 @@ class LiveConfig:
             targets["stt"] = PROVIDER_URLS[where]
         if (image := self.image_settings) is not None:
             targets["image"] = image.base_url
+        if (gpt := self.gpt_image_settings) is not None:
+            targets["gpt_image"] = gpt.base_url
         return targets
 
     async def _reach_changed(self, before: ProxySettings, after: ProxySettings) -> None:
@@ -1784,6 +1985,14 @@ def _llm(values: Values) -> LLMSettings:
 
 def _image(values: Values) -> ImageSettings:
     return ImageSettings(**{field: values[field] for field in _Image.fields})
+
+
+def _gpt_image(values: Values) -> GptImageSettings:
+    return GptImageSettings(**{field: values[field] for field in _GptImage.fields})
+
+
+def _qweather(values: Values) -> QWeatherSettings:
+    return QWeatherSettings(**{f: values[f] for f in QWEATHER_FIELDS})
 
 
 def _chat_model(values: Values) -> ChatModelSettings:

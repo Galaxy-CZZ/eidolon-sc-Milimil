@@ -11,6 +11,7 @@ This guide explains how to turn on and tune each feature, and how the characters
 > |---|---|
 > | Text chat | `CHAT_LLM_*` |
 > | Voice calls | `FISH_AUDIO_API_KEY`, plus a speech recognition key: `SONIOX_API_KEY` (default), or `STT_PROVIDER=bailian` plus `DASHSCOPE_API_KEY` |
+> | Reading her words aloud | `FISH_AUDIO_API_KEY` |
 > | Story corpus (sync or import) | An embedding key: `SILICONFLOW_API_KEY` (default), or `EMBEDDING_PROVIDER=gemini` plus `GEMINI_API_KEY` |
 > | Retrieval and memory | An embedding key, `SILICONFLOW_API_KEY` (reranking), plus a judge: `JEV_API_KEY` (default), or `JUDGE_PROVIDER=cloudflare` plus `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`, or `JUDGE_PROVIDER=bailian` plus `BAILIAN_JUDGE_API_KEY` and `BAILIAN_JUDGE_WORKSPACE_ID` |
 > | Affinity and gifts | A judge (the switch is on by default) |
@@ -18,6 +19,9 @@ This guide explains how to turn on and tune each feature, and how the characters
 > | Schedules | Nothing (the switch is on by default) |
 > | Cycles | Nothing (the switch is on by default) |
 > | Reach-outs | `EIDOLON_REACH_OUTS=1` (off by default) |
+> | Letters | `EIDOLON_LETTERS=1` (off by default); the music is uploaded separately, see Letters |
+> | Moments | `EIDOLON_MOMENTS=1` (off by default) |
+> | Weather in conversations | Nothing for Tokyo's; the producer's needs QWeather's five settings: `QWEATHER_*` |
 > | Bar | Nothing (the switch is on by default) |
 > | Stands and the landing page's greetings | `EIDOLON_STAND_ASSETS_URL`, and a bucket holding the assets |
 > | Google / GitHub sign-in | `GOOGLE_CLIENT_*`, `GITHUB_CLIENT_*` |
@@ -40,6 +44,9 @@ This guide explains how to turn on and tune each feature, and how the characters
 - [Cycles](#cycles)
 - [Photos](#photos)
 - [Reach-outs](#reach-outs)
+- [Letters](#letters)
+- [Moments](#moments)
+- [Weather](#weather)
 - [Bar](#bar)
 - [Sign-in, users and usage limits](#sign-in-users-and-usage-limits)
 - [Bring your own keys](#bring-your-own-keys)
@@ -105,6 +112,7 @@ How to write each field is in the comments at the top of the file. A few need ex
 - **`age`**: Her age in the game, a whole number, as the third line of her character facts has it. It only decides whether her cycle goes as an under-18's or an adult's. If it is missing or not a positive whole number, the backend refuses to start.
 - **`short_name`** (optional): Her short name, the end of `name` (such as 「真乃」), shown where jobs are placed in the calendar; without one, the full name is used. If it isn't the end of `name`, the backend refuses to start.
 - **`background`** (optional): The call screen's background image, kept in `characters/backgrounds/`. Without one, a gradient of her image color is used instead.
+- **`signature`** (optional): Her handwritten signature, kept in `characters/signatures/`, revealed left to right at the end of her letters. Without one, her name is written in the letter's hand instead.
 - **Character sheet**: If a character sheet file is missing, the backend refuses to start and names the missing one. docker compose mounts `characters/` read-only into the backend container.
 - **`liked_gifts`**: The gifts she likes, by `id` in the gift catalog [`characters/gifts.toml`](../characters/gifts.toml): one to three, not all of them rare. Each needs its story source in the 「喜欢的礼物」 section of her sources file (`facts/<id>.sources.md`). If they are missing, not in the catalog, too many or all rare, the backend refuses to start.
 - **Bar tastes**: `bar_flavors` is the flavors she likes (one or two), `bar_kind` the kind she likes (optional), `bar_favorites` the drinks she loves (one to three, by `id` in the drink catalog [`characters/drinks.toml`](../characters/drinks.toml)), `bar_disliked_flavor` the flavor she dislikes (optional; it can't be one she likes, and none of her favorite drinks can have it), and `bar_tolerance` how well she holds her drink (`weak`, `medium`, `strong`). The reasoning for each is in the 「酒吧口味」 section of her sources file. If a required one is missing or a value is wrong, the backend refuses to start; if you maintain your own character config, add these when you upgrade.
@@ -174,7 +182,8 @@ Speech recognition is one of two services, chosen with `STT_PROVIDER`, and the w
 
 - **Languages and subtitles**: You can speak Chinese or Japanese. She reads the Japanese text in the configured Fish Audio voice. The Japanese text and the Chinese subtitle appear together and are also written into the conversation record.
 - **Model**: `FISH_AUDIO_MODEL` is one of `s2.1-pro-free`, `s2.1-pro`, `drama-3`, `s2-pro` and `s1`, and the admin console's speech synthesis is a dropdown of the same. Fish Audio silently voices a model name it does not know with the paid `s2.1-pro`, so the backend refuses to start on a misspelt one. The default `s2.1-pro-free` consumes no API credits; the others need API credit. Users who bring their own Fish Audio key choose their model in Settings, `s2.1-pro-free` unless they do, whatever the deployer's is; a paid model chosen on a key with no API credit is turned down as it is saved.
-- **Delivery cues**: For segments with clear emotion, she writes a cue for Fish Audio before the Japanese (e.g. `[shyly] えへへ`), and synthesis reads it with that feeling. Malformed cues are always dropped. Cues are not shown in the interface, but stay in the conversation record as written ([ADR-0007](adr/0007-delivery-cues-kept-in-the-record.md)). In calls voiced with `drama-3`, she may write fuller, director-style cues (`[trying to hide her disappointment]`), sounds such as laughs and pauses (`[small laugh]`), and paired tags around a few words (`<whisper>内緒</whisper>`); voiced with any other model, the paired tags are taken out first rather than read aloud.
+- **Delivery cues**: For segments with clear emotion, she writes a cue for Fish Audio before the Japanese (e.g. `[shyly] えへへ`), and synthesis reads it with that feeling. Malformed cues are always dropped. Cues are not shown in the interface, but stay in the conversation record as written ([ADR-0007](adr/0007-delivery-cues-kept-in-the-record.md)). Voiced with `drama-3` (in calls, or when her words would be read aloud with it), she may write fuller, director-style cues (`[trying to hide her disappointment]`), sounds such as laughs and pauses (`[small laugh]`), and paired tags around a few words (`<whisper>内緒</whisper>`); voiced with any other model, the paired tags are taken out first rather than read aloud.
+- **Read aloud**: Her voice without a call. Right-click or long-press one of her lines in the conversation record (a reply or a reach-out, in past conversations too) and choose 「朗读」 (Read aloud): the same Fish Audio key and model voice the whole line, delivery cues and readings included, and a voice bar to play and pause it appears below. It goes through Fish Audio's HTTP API, the whole line at once with `latency` `normal`, rather than streamed a sentence at a time as in calls, so it reads more smoothly. In text turns she writes her delivery cues for the model her words would be read aloud with. The audio stays only in the user's browser tab; the server keeps none of it. Each read-aloud counts towards the read-alouds per hour (`EIDOLON_READ_ALOUDS_PER_HOUR`, see [Sign-in, users and usage limits](#sign-in-users-and-usage-limits)); the dashboard counts it in speech synthesis usage and cost, but it has no activity record of its own. Without `FISH_AUDIO_API_KEY`, only users who bring their own speech synthesis key can read aloud.
 - **Follow-ons and interruptions**: Before she has spoken a complete segment (the Japanese together with its subtitle), anything more you say joins the current turn, and she answers the whole thing afresh. Once she has spoken a complete segment, speaking up interrupts her: she stops, and the reply is recorded with only the segments already finished. Typing works the same way.
 - **Call screen**: It can be collapsed back to the transcript while the call carries on, leaving a call bar in her color below the header. At the bottom are three buttons: mic mute, hang up and switch microphone. With 「只看文字」 (Text only) at the top right turned on, she stays silent, and only the Japanese text and subtitles are shown.
 - **Phone sounds**: A ringback tone plays while dialing, a connect tone when the call connects, and a hang-up tone when it ends. On the settings page's 「通话」 (Calls) tab you can choose the default microphone and call audio quality, and turn on 「电话质感」 (Phone texture) so her voice sounds as if heard through a handset.
@@ -458,6 +467,62 @@ When a user has been away a while, the character says a few words first in the c
 - **Daily limit**: By default each user is reached out to at most 3 times a day (the day going by the time zone in their producer profile, or Beijing time if none is set); change it in the same card.
 - **Cost**: Generated with the deployer's chat model, at the deployer's expense, even for users who bring their own LLM. It doesn't count towards users' usage limits.
 
+## Letters
+
+On special days the character writes the producer a letter: when her affinity first reaches close or intimate, when she's complete, on the producer's birthday, on her birthday, and 100 days after they first talked and every year after that. She reads it aloud in her own voice over music; users receive and reread letters from the envelope button at the top of the conversation list.
+
+- **Switch**: Off by default. Set `EIDOLON_LETTERS=1` in `.env`, or turn it on in the 「信」 (Letters) card under 「限额与玩法」 (Limits and play) on the admin console's config page, which takes precedence. Days that pass while it's off aren't made up for, and letters already written can still be read.
+- **Cost**: She writes with the deployer's chat model and reads with the deployer's speech synthesis (`FISH_AUDIO_API_KEY`), at the deployer's expense; the same goes for users who bring their own keys, and it doesn't count towards usage limits. Without speech synthesis there are only the words and the music.
+- **Music**: Not in the repository; upload it to the stands' bucket with `eidolon letter-music upload <dir>`, with `EIDOLON_STAND_ASSETS_URL` and the bucket's CORS set up; under docker compose, mount the directory into the backend container first. Which files to upload and at which second each climax starts are in [`characters/letter_music.toml`](../characters/letter_music.toml); without them there's no music, and letters can still be read.
+
+## Moments
+
+An item in the navigation alongside conversations, play and settings, one for each user that only they can see. The characters who have talked with them post there: in Japanese with Chinese subtitles, possibly with a picture, a real place and the weather in Tokyo when she posted; other idols like and comment. The user can like and comment, and a while later she replies once. Only users who have had a turn or a connected call with any character in the last 7 days get posts; the closer she is, the more often she posts, and while cold, distant or in cooldown she neither posts nor replies to comments. Users can turn it off on the settings page's 「朋友圈」 (Moments) tab. Each post is deleted automatically after 30 days, and posts don't go into data packages.
+
+- **Switch**: Off by default. Set `EIDOLON_MOMENTS=1` in `.env` to turn it on, or switch it in the 「朋友圈」 (Moments) card on the admin console's config page, which takes precedence over `.env`. Turning it off only stops posting and hides moments; the posts already there expire as usual.
+- **Daily limits**: By default each user gets at most 3 posts a day (all characters together), and the characters reply to at most 10 of their comments a day, the day going by Tokyo time; change them in the same card.
+- **Map**: Tapping a place opens OpenStreetMap by default. OpenStreetMap can't be reached from mainland China without a proxy, so you can switch to Amap (高德) or Google Maps in the same card; the whole deployment uses the same one.
+- **Weather**: From [Open-Meteo](https://open-meteo.com/), with no key needed; when it can't be had, no weather is shown.
+- **Place pool**: In [`characters/places.toml`](../characters/places.toml); see the comments at the top of the file. Restart the backend after editing; if something is wrong, the backend won't start. Which kinds of places a job goes to are in the `places` of `jobs.toml`, and which kinds each idol likes are in the `place_likes` of `characters.toml`. Posts already made keep showing the place names they had.
+- **Cost**: Posts, their pictures and her replies to comments all use the deployer's chat model and image generation (`NOVELAI_API_KEY`, and GPT Image for pictures with no one in them if configured), at the deployer's expense, even for users who bring their own keys. They don't count towards users' usage limits. Without image generation she posts text only.
+- **Pictures with no one in them (GPT Image, optional)**: Scenery, food and objects, the three compositions with no one in them, can be drawn by a separate service in OpenAI's image format (the GPT Image series), which knows real places and Japanese signs. It only takes effect alongside the image generation above; without `GPT_IMAGE_API_KEY`, nothing changes. Pictures with people in them and photos in conversations never go to it. When it has no picture within 4 minutes (waiting included), answers with an error or with what is not a picture, or its moderation blocks it, the picture is drawn by the image generation above as before, in what is left of the 10 minutes; if that fails too, she posts text only. A post that fell back is counted once as `picture_fallback` in the activity records.
+
+  | Environment variable | Default | Description |
+  |---|---|---|
+  | `GPT_IMAGE_API_KEY` | Empty | An OpenAI key, or a relay's. Left empty, it is off |
+  | `GPT_IMAGE_BASE_URL` | `https://api.openai.com/v1` | Up to `/v1`; requests go to `{address}/images/generations` |
+  | `GPT_IMAGE_MODEL` | `gpt-image-2` | gpt-image-2 or later: earlier models take only a few preset sizes and refuse, so every picture would fall back |
+  | `GPT_IMAGE_QUALITY` | `medium` | `low`, `medium`, `high`, `auto`, and for the 2.5 series `xhigh` and `max`; anything else fails at startup |
+  | `GPT_IMAGE_STYLE` | An English sentence for cel-shaded anime background art | The style sentence, the prompt's first line. Left empty, the default one |
+
+  - **What is sent**: The server writes the prompt in English sentences: the style sentence, the composition, the place's own name, its area and what it is (marked as background only), the note she wrote for the picture, the tags she wrote for what is in it, the month and time of day in Tokyo, and Tokyo's weather as she posts. Only `model`, `prompt`, `size`, `quality` and `n` are sent, no negative prompt nor `response_format`; `b64_json` or `url` is taken.
+  - **Size**: The size kept is asked for directly: 1216×832 for scenery, 832×1216 for food and objects. A picture of another size (some relays always answer 1448×1086, or turn it the other way) is cropped about its middle to the shape asked for and scaled to it, not counted as a failure.
+  - **Network**: Whether it goes through the proxy is its own switch (`gpt_image` in `EIDOLON_PROXY_SERVICES`), apart from image generation's `image`.
+  - **Admin console**: The 「无人配图（GPT Image）」 card on the config page's 「生图」 (image) tab changes the five above. Saving generates one picture of fixed scenery to check it and keeps nothing if it fails; that picture costs money but counts towards no usage and goes into no activity records.
+  - **Cost**: Estimated per picture: `gpt-image-2` at `api.openai.com` is preset at $0.041 a picture (medium, the 1536×1024 tier, from OpenAI's image generation guide on 2026-11-01); other qualities and relays have no preset, so set one in the admin console. The dashboard shows it on a row of its own beside image generation.
+
+## Weather
+
+While texting, on calls and when reaching out, the character knows the weather in Tokyo right now (she lives in Tokyo): what it's like now, whether it will rain or snow later today, today's high and low, and whether it's colder or warmer than yesterday. When the user has set 「所在城市」 (City) in their producer profile, she also knows where the producer is, the weather there and any weather warnings in effect. Asked, she can always answer, but she brings it up herself only once, and only when it has been 3 hours or more since they last talked, when the weather stands out (rain or snow, or 8°C or more colder or warmer than yesterday), or when there's a warning where the producer is; once it has come up in the conversation, she doesn't bring it up again. The weather isn't shown anywhere on screen.
+
+- **Tokyo's weather**: From [Open-Meteo](https://open-meteo.com/), with no key needed; there's nothing to configure.
+- **City**: Needs the deployer to configure [QWeather](https://dev.qweather.com/). Once it is, 「制作人档案」 (Producer profile) in settings gains 「所在城市」 (City), where users can search by name or find the nearest city from their current location (the coordinates the browser gives are used only to find the city and aren't kept); the city's name and its centre coordinates are stored in the producer profile and go into data packages. Without QWeather the field isn't there; a city already saved stays, unused, and is used again once QWeather is configured again. The weather where the producer is also comes from Open-Meteo; QWeather is used only to find cities and look up warnings.
+- **Getting QWeather**:
+  1. Sign up on the [QWeather console](https://console.qweather.com) and create a project under 「项目管理」 (Project management).
+  2. Generate an Ed25519 key pair (the openssl that comes with Git Bash will do):
+
+     ```sh
+     openssl genpkey -algorithm ED25519 -out ed25519-private.pem
+     openssl pkey -pubout -in ed25519-private.pem > ed25519-public.pem
+     ```
+
+  3. In the project, choose 「添加凭据」 (Add credential), pick JSON Web Token as the authentication method, and paste in the whole of `ed25519-public.pem`.
+  4. Fill in five settings in `.env`: `QWEATHER_API_HOST` (the API Host under 「设置」 (Settings) in the console), `QWEATHER_DEVELOPER_ID` (on the same page, starting with Q), `QWEATHER_PROJECT_ID`, `QWEATHER_KEY_ID` (the credential ID), and `QWEATHER_PRIVATE_KEY` (the middle line of `ed25519-private.pem`). You can also fill them in under 「天气」 (Weather) on the admin console's config page, which looks up Beijing by coordinates once as a check before saving. Set all five or none: with only some of them set, the backend won't start.
+  - JWT rather than an API KEY, because from 2027 QWeather limits how many requests an API KEY can make a day.
+- **Quota**: The first 50,000 requests a month on QWeather are free. They're used only when users search for a city or use their current location, and to look up warnings (at most once an hour per city).
+- **When it can't be had**: Each turn waits at most 1.5 seconds for the weather and the warnings; if they can't be had, she isn't told that turn and doesn't bring it up, with no error. All of it goes direct, not through the proxy, and none of it is in service status or the activity records.
+- **Attribution**: QWeather requires that wherever its content is shown, it says 「天气服务由和风天气驱动」 (Weather service powered by QWeather), and that wherever warnings are used, their source is shown as it is. This project puts the attribution in the privacy policy's 「这些数据会交给哪些第三方处理」 (Which third parties process this data) section and adds none to the settings page; warnings are only given to the character to put in her own words, not shown on screen, so their source isn't shown either. The terms don't cover use that only a model sees; if that concerns you, you can ask QWeather.
+
 ## Bar
 
 One of the 「玩法」 (Play) features: characters visit VA-283, a small bar in an IF setting, where the producer tends bar and mixes drinks to her order. What happens at the bar doesn't go into conversations or become memories.
@@ -480,7 +545,7 @@ Anyone can sign in with Google or GitHub, with no invitation or approval ([ADR-0
 - **Deleting data**: 「删除我的全部数据」 (Delete all my data), after a second confirmation, deletes memories, conversations, the producer profile, sign-in methods and usage limit counts for good, and signs the user out on all devices. Copies in the daily encrypted backups disappear within 30 days at most ([ADR-0012](adr/0012-encrypted-offsite-backups-with-bounded-retention.md)).
 - **Dev login**: For local development, set `EIDOLON_DEV_LOGIN=1`, and the sign-in panel gains 「开发登录」 (Dev login), which signs in directly by name. A public deployment with `EIDOLON_DOMAIN` set refuses to start if it detects this switch. With it on and `EIDOLON_ADMINS` empty, everyone is an admin and can open the admin console.
 
-So that no single user drains the deployer's API credits, the following limits apply by default (0 means unlimited). They can also be changed in the admin console, and turns, calls, photos and visits per hour can be set for an individual user:
+So that no single user drains the deployer's API credits, the following limits apply by default (0 means unlimited). They can also be changed in the admin console, and turns, calls, photos, visits and read-alouds per hour can be set for an individual user:
 
 | Limit | Default | Environment variable |
 |---|---|---|
@@ -488,12 +553,13 @@ So that no single user drains the deployer's API credits, the following limits a
 | Voice calls per hour | 5 | `EIDOLON_CALLS_PER_HOUR` |
 | Photos per hour | 5 | `EIDOLON_PHOTOS_PER_HOUR` |
 | Bar visits per hour | 5 | `EIDOLON_VISITS_PER_HOUR` |
+| Read-alouds per hour | 60 | `EIDOLON_READ_ALOUDS_PER_HOUR` |
 | Duration per call | 10 minutes | `EIDOLON_CALL_MINUTES` |
 | Turns per call | 40 | `EIDOLON_TURNS_PER_CALL` |
 | Calls at once | 10 | `EIDOLON_CONCURRENT_CALLS` |
 | History turns sent per turn | 20 | `EIDOLON_HISTORY_TURNS` |
 
-- **How it counts**: Per user, whichever sign-in method or device they use. Turns that fail because a service erred, and calls that never connected, don't count; ones the user leaves midway still count. Photos are counted across text turns and calls alike, by whose money each one costs: photos not sent don't count, nor ones on the user's own image generation; a photo on the deployer's image generation counts even in a turn on the user's own LLM. A visit counts once when she walks in; retries don't count again, and a visit whose first call fails before a single line is written doesn't count.
+- **How it counts**: Per user, whichever sign-in method or device they use. Turns that fail because a service erred, and calls that never connected, don't count; ones the user leaves midway still count. Photos are counted across text turns and calls alike, by whose money each one costs: photos not sent don't count, nor ones on the user's own image generation; a photo on the deployer's image generation counts even in a turn on the user's own LLM. A visit counts once when she walks in; retries don't count again, and a visit whose first call fails before a single line is written doesn't count. Each read-aloud counts once, by whose money it costs: one on the user's own speech synthesis key doesn't count, nor one that wasn't voiced.
 - **Exempting keys**: The deployer picks some of the LLM, speech synthesis and speech recognition. A call that brings the user's own keys for every service picked doesn't count; the deployer pays for the rest, and bringing more keys still doesn't count. Text turns and visits ignore this setting: one on the user's own LLM doesn't count. Image generation can't be picked. Users without their own keys can still start turns and calls; those count.
   - **`.env`**: `EIDOLON_EXEMPTING_LLM`, `EIDOLON_EXEMPTING_TTS` and `EIDOLON_EXEMPTING_STT`, one per service. Unset or `1` picks it, `0` doesn't, and any other value fails at startup. All three are picked by default, so only calls bringing all three don't count.
   - **At least one**: All three set to `0` fails at startup, and the admin console won't turn off the last one. To lift the limits, set the turns and calls per hour to unlimited instead.
@@ -519,11 +585,11 @@ By default, the deployer pays for everything. Users can enter their own keys on 
 | Service | What to enter | Used for |
 |---|---|---|
 | LLM | Protocol, base_url, key, model name | Playing the character (text, calls and bar visits), extracting memories |
-| Speech synthesis (Fish Audio) | Key | Her voice in calls; the voice still comes from the character configuration |
+| Speech synthesis (Fish Audio) | Key | Her voice in calls and read aloud; the voice still comes from the character configuration. Read-alouds on it don't count |
 | Speech recognition (Soniox or Alibaba Cloud Model Studio) | Provider and key | Hearing the user in calls; independent of the deployer's choice |
 | Image generation | Format, address, key, model | The photos she sends (text and calls), not counted toward photos per hour; the deployer's art style still applies, one picture at a time |
 
-- **Kept only in the browser**: Keys are stored only in the user's browser (separately for each account). They are sent to the server with each turn, call or visit, stay in its memory only while it is handled (for a visit, until the visit ends), and are never written to the database, logs or backups ([ADR-0017](adr/0017-own-api-keys-stay-in-the-browser.md)). After switching devices or clearing browser data, they must be entered again.
+- **Kept only in the browser**: Keys are stored only in the user's browser (separately for each account). They are sent to the server with each turn, call, read-aloud or visit, stay in its memory only while it is handled (for a visit, until the visit ends), and are never written to the database, logs or backups ([ADR-0017](adr/0017-own-api-keys-stay-in-the-browser.md)). After switching devices or clearing browser data, they must be entered again.
 - **Tried first**: Each key is tried once when entered, and not stored if the try fails. The LLM must also support streaming and tool calling; image generation generates one real picture, on the user's own credit, not counted in usage. In a public deployment, base_url (for image generation, the address and any `url` a picture comes from) must be an HTTPS public address, checked again on every connection.
 - **No fallback on failure**: When an own key fails (out of credit, revoked, etc.), that turn or call fails, saying which key had the problem. It **never falls back to the deployer's keys**. Image generation is the exception: the turn goes on, only that photo isn't sent, because the user's own image generation key didn't work.
 - **Always on the deployer**: Embedding, reranking and the judge.
@@ -550,6 +616,7 @@ EIDOLON_PROXY_SERVICES=chat_llm,tts,stt
 | `tts` | Speech synthesis (Fish Audio) |
 | `stt` | Speech recognition (Soniox or Alibaba Cloud Model Studio) |
 | `image` | Image generation (NovelAI or a relay alike) |
+| `gpt_image` | GPT Image, for pictures with no one in them in moments |
 | `own_llm` | Users' own LLMs (with their own background models), only at a known provider's address |
 | `own_tts` | Users' own speech synthesis |
 | `own_stt` | Users' own speech recognition (whichever service they chose) |
@@ -581,13 +648,13 @@ List the admins' sign-in method identifiers in `EIDOLON_ADMINS` in `.env` (like 
 
 | Page | What it does |
 |---|---|
-| Dashboard (`/admin`) | Calls, error rate and latency per service; active users, the number and trend of turns and calls, usage per character, calls in progress; with affinity on, totals of judgements and cooldowns, plus per character the shares raised and lowered, cooldowns, and the calls she hung up or conversations she ended, as well as 「成就」 (Achievements): how many achievement stages were unlocked, and the draws and reset cards they gave; with schedules on, the number of users with a schedule this week; with reach-outs on, how many there were, how many failed and the share answered; with the bar on, how many visits there were, how many finished and how many failed; the deployer's cost estimated from unit prices |
-| Config (`/admin/config`) | Change the LLMs for playing the character and extracting memories, speech synthesis, speech recognition, image generation, the judge, rerank thresholds, usage limits, exempting keys, per-call caps, history turns, the affinity and gifts switch (and granting every user a reset card), the schedules switch, the reach-outs switch and daily limit, the bar switch, the proxy, the service status and unit prices |
+| Dashboard (`/admin`) | Calls, error rate and latency per service; active users, the number and trend of turns and calls, usage per character, calls in progress; with affinity on, totals of judgements and cooldowns, plus per character the shares raised and lowered, cooldowns, and the calls she hung up or conversations she ended, as well as 「成就」 (Achievements): how many achievement stages were unlocked, and the draws and reset cards they gave; with schedules on, the number of users with a schedule this week; with reach-outs on, how many there were, how many failed and the share answered; with letters on, how many were written and how many times writing one failed; with moments on, how many were posted and how many failed, how many replies to comments there were and how many failed, and the share of the last 30 days' posts the producer liked or commented on; with the bar on, how many visits there were, how many finished and how many failed; the deployer's cost estimated from unit prices |
+| Config (`/admin/config`) | Change the LLMs for playing the character and extracting memories, speech synthesis, speech recognition, image generation, the judge, rerank thresholds, usage limits, exempting keys, per-call caps, history turns, the affinity and gifts switch (and granting every user a reset card), the schedules switch, the reach-outs switch and daily limit, the letters switch, the moments switch, daily limits and map, the bar switch, the proxy, the service status and unit prices |
 | Users (`/admin/users`) | Search users, see their sign-in methods and recent usage; ban, unban, set an individual usage limit, delete |
 
 - **Overrides `.env`**: Items changed in the admin console are stored in the database and take precedence over `.env`, with no restart needed. Each change is tried before saving and not saved if the try fails. A call in progress finishes on the configuration it connected with.
 - **Only changeable in `.env`**: The admin list, `EIDOLON_SECRET_KEY`, OAuth, the domain, WebRTC/TURN, backups, paths and embedding.
-- **Not visible**: The admin console shows no one's conversations, memories, producer profile, affinity, gifts, draws, achievements, schedules or visit records; the dashboard only has totals across all users. The dashboard's numbers come from activity records (which hold no conversation content), kept for 90 days.
+- **Not visible**: The admin console shows no one's conversations, memories, producer profile, affinity, gifts, draws, achievements, schedules, visit records, moments or letters; the dashboard only has totals across all users. The dashboard's numbers come from activity records (which hold no conversation content), kept for 90 days.
 
 For how to turn it on and what to do when you can't get into the admin console, see "后台" in [`deploy.md`](deploy.md) (Chinese).
 
@@ -603,6 +670,7 @@ The backend's command line is `eidolon`. Under docker compose, use `docker compo
 | `character draft-sheet <id>` | Draft a character sheet with the background model |
 | `reading draft` | Fill in phonemes in the readings table (local only) |
 | `greeting upload` | Synthesize and upload the landing page's greetings |
+| `letter-music upload <dir>` | Upload the music under letters |
 | `stand fetch` / `outfits` / `upload` | The three steps for stand assets, usually chained by `deploy/stand-sync.sh` |
 | `reembed` | Re-embed after switching embedding service, model or dimensions |
 | `eval rerank` / `judge` / `memory` | Calibrate rerank thresholds and judge thresholds, evaluate memory |

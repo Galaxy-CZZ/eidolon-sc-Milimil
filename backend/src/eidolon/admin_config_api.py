@@ -15,6 +15,7 @@ from eidolon.config import (
     MAX_IMAGE_CONCURRENCY,
     BailianRegion,
     FishAudioModel,
+    GptImageQuality,
     ImageFormat,
     JudgeProvider,
     LLMProtocol,
@@ -26,12 +27,16 @@ from eidolon.live_config import (
     BAR,
     CHAT_LLM,
     CYCLES,
+    GPT_IMAGE,
     IMAGE,
     JUDGE,
     JUDGE_THRESHOLDS,
     LIMITS,
     MEMORY_LLM,
+    LETTERS,
+    MOMENTS,
     PROXY,
+    QWEATHER,
     REACH_OUTS,
     READ_ONLY,
     REGISTRATION,
@@ -120,6 +125,20 @@ class ImageInput(BaseModel):
     _trim = field_validator("base_url", "model")(_trimmed)
 
 
+class GptImageInput(BaseModel):
+    """GPT Image; without `api_key`, its key stays as it is. An art style left out or empty
+    is the default one."""
+
+    base_url: str = Field(min_length=1, max_length=500)
+    model: str = Field(min_length=1, max_length=200)
+    quality: GptImageQuality
+    style: str | None = Field(None, max_length=1000)
+    api_key: str | None = ApiKey
+
+    _trim = field_validator("model")(_trimmed)
+    _base_url = field_validator("base_url")(checked_base_url)
+
+
 class JudgeInput(BaseModel):
     provider: JudgeProvider
     model: str = Field(min_length=1, max_length=200)
@@ -155,6 +174,7 @@ class LimitsInput(BaseModel):
     calls_per_hour: Any
     photos_per_hour: Any
     visits_per_hour: Any
+    read_alouds_per_hour: Any
     call_minutes: Any
     turns_per_call: Any
     concurrent_calls: Any
@@ -162,6 +182,19 @@ class LimitsInput(BaseModel):
     exempting_llm: Any
     exempting_tts: Any
     exempting_stt: Any
+
+
+class QWeatherInput(BaseModel):
+    """The deployer's QWeather account; without `private_key`, the key stays as it is.
+    Checked by the live configuration, which says what is wrong in so many words."""
+
+    host: str = Field(min_length=1, max_length=200)
+    developer_id: str = Field(min_length=1, max_length=100)
+    project_id: str = Field(min_length=1, max_length=100)
+    key_id: str = Field(min_length=1, max_length=100)
+    private_key: str | None = Field(None, min_length=8, max_length=1000)
+
+    _trim = field_validator("host", "developer_id", "project_id", "key_id")(_trimmed)
 
 
 class AffinityInput(BaseModel):
@@ -176,6 +209,25 @@ class ReachOutsInput(BaseModel):
 
     enabled: Any
     per_day: Any
+
+
+class LettersInput(BaseModel):
+    """Whether characters write letters on their occasions, true or false; checked by the
+    live configuration."""
+
+    enabled: Any
+
+
+class MomentsInput(BaseModel):
+    """Whether characters post moments, true or false, how many a day each user at most, a
+    whole number from 1 up, which map their places link to, and how many of each user's
+    comments a day they reply to, a whole number from 1 up, each of the last two unchanged
+    if not given; checked by the live configuration."""
+
+    enabled: Any
+    per_day: Any
+    map: Any = None
+    replies_per_day: Any = None
 
 
 class ScheduleInput(BaseModel):
@@ -215,6 +267,7 @@ class ProxyInput(BaseModel):
     tts: StrictBool
     stt: StrictBool
     image: StrictBool
+    gpt_image: StrictBool
     own_llm: StrictBool
     own_tts: StrictBool
     own_stt: StrictBool
@@ -248,12 +301,16 @@ INPUTS: dict[str, type[BaseModel]] = {
     TTS: TTSInput,
     STT: STTInput,
     IMAGE: ImageInput,
+    GPT_IMAGE: GptImageInput,
     JUDGE: JudgeInput,
     JUDGE_THRESHOLDS: JudgeThresholdsInput,
     RERANK: RerankInput,
     LIMITS: LimitsInput,
     AFFINITY: AffinityInput,
     REACH_OUTS: ReachOutsInput,
+    LETTERS: LettersInput,
+    MOMENTS: MomentsInput,
+    QWEATHER: QWeatherInput,
     SCHEDULE: ScheduleInput,
     CYCLES: CyclesInput,
     BAR: BarInput,
@@ -266,13 +323,16 @@ INPUTS: dict[str, type[BaseModel]] = {
 def _change(item: str, body: BaseModel) -> dict[str, Any]:
     """What the input changes of the item: every field given (a model slot's max_tokens
     may be None, its protocol's default), a key, the judge model's account, workspace
-    and region and a proxy's password only if given."""
+    and region, a proxy's password and the moments' map and how many comments a day they
+    reply to only if given."""
     change = body.model_dump()
-    for field in ("account_id", "workspace_id", "region"):
+    for field in ("account_id", "workspace_id", "region", "map", "replies_per_day"):
         if change.get(field, "") is None:
             del change[field]
     if change.get("password", "") is None:
         del change["password"]
+    if change.get("private_key", "") is None:
+        del change["private_key"]
     if key := change.pop("api_key", None):
         change[STT_KEY_FIELDS[change["provider"]] if item == STT else "api_key"] = key
     return change

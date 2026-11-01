@@ -126,6 +126,7 @@ docker compose up -d --build
 | 剧情回忆、记忆：向量化和重排 | 硅基流动（cloud.siliconflow.cn），向量化和重排一个 key 就够 | `SILICONFLOW_API_KEY` | 能直连。Gemini 向量化不对中国大陆、香港、澳门开放 |
 | 剧情回忆、记忆：判断模型 | 三家选一家：Jev（经 OpenRouter，`JEV_API_KEY`）、Cloudflare Workers AI（每天有免费额度）、阿里云百炼的决策模型 | 见 `.env.example`「判断模型」 | 推荐百炼；OpenRouter 要代理 |
 | 照片 | NovelAI，或者兼容的中转；还要配好判断模型 | `NOVELAI_*` | 要代理 |
+| 朋友圈无人配图（可选） | OpenAI 的 GPT Image（gpt-image-2 或更新），或者兼容的中转；要先配好照片那一行 | `GPT_IMAGE_*` | OpenAI 要代理（`EIDOLON_PROXY_SERVICES` 的 `gpt_image`） |
 | 通话立绘 | 不用申请服务，见「立绘」 | `EIDOLON_STAND_ASSETS_URL` | |
 
 - 对话模型必须支持工具调用，否则后端拒绝启动，doctor 会报「模型不对」。模型名以服务商文档为准，填进去以后由 doctor 实测。
@@ -298,7 +299,7 @@ git 也可以单独设代理：`git config --global http.https://github.com.prox
 
 - 第一行是「✗ .env 有错」时，后端连启动都不会，照它说的改 `.env`。
 - 有后台时（设了管理者，或者本机开着开发登录），后台配置页改过的项优先于 `.env`，doctor 只查 `.env`。
-- 生图 doctor 不试，因为每张都花钱。
+- 生图和 GPT Image doctor 都不试，因为每张都花钱。GPT Image 走不走代理，按「服务一览」那一列自己加 `gpt_image`。
 - Windows 上中文显示成乱码时，先在那个终端里运行 `chcp 65001`，再运行一次。
 - doctor 全部正常、问题却还在，就按现象查：
   - **打不开 localhost:3000**：直接跑时，看前端那个终端有没有报错、`npm run build` 是不是成功了；Docker 跑时，用 `docker compose ps` 看两个容器是不是都在运行。端口被占时，按 2.3 的办法结束占用端口的进程。

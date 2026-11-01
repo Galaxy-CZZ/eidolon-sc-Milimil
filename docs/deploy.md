@@ -237,6 +237,7 @@ docker compose -f docker-compose.prod.yml exec backend eidolon eval memory --jso
 | `call-posters/<角色标识>.webp` | 落地页演示来电里她的卡图（联系人海报），手动上传，见下面「招呼」里的「来电卡图」 |
 | `landing-voxels/<角色标识>.json` | 落地页第 5 幕里她的体素小人，手动上传，见下面「招呼」里的「体素小人」 |
 | `landing-memory/still.webp` | 落地页第 5 幕事先渲染好的终局全景图，给不播放动画的访客，手动上传，见下面「招呼」里的「第 5 幕的静止图」 |
+| `letters/music/<文件名>` | 信的配乐，由 `eidolon letter-music upload <目录>` 从本机上传，见 [configuration.md](configuration.md#信)「信」 |
 | `bar/music/<编号>.ogg`、`bar/sfx/<名字>.ogg`、`bar/manifest.json` | 酒吧点唱机的曲目、酒吧的音效和列出已上传文件的 manifest，由 `eidolon bar upload` 从本机上传，见下面的「酒吧的音频」 |
 
 后端通过 `/api/characters` 把默认衣装的地址和衣装清单的地址（`stand.outfits_url`）告诉浏览器。

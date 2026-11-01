@@ -51,7 +51,8 @@ async def test_a_user_set_to_1_turn_is_told_1_and_back_to_the_deployments_once_t
     refused = await post_turn(producer, conversation_id)
 
     limits = {"turns_per_hour": 1, "calls_per_hour": None, "note": "测试者，先收紧",
-              "updated_at": START.isoformat(), "photos_per_hour": None, "visits_per_hour": None}
+              "updated_at": START.isoformat(), "photos_per_hour": None, "visits_per_hour": None,
+              "read_alouds_per_hour": None}
     assert shown["limits"] == limits
     assert (await find(admin, "producer"))["limits"] == limits
     assert (await find(admin, "boss"))["limits"] is None

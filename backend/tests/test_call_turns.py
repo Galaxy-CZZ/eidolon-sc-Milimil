@@ -21,10 +21,12 @@ import pytest
 from pipecat.frames.frames import (
     BotStartedSpeakingFrame,
     CancelFrame,
+    EndFrame,
     Frame,
     InterruptionFrame,
     LLMFullResponseEndFrame,
     LLMFullResponseStartFrame,
+    StartFrame,
     TextFrame,
     TranscriptionFrame,
 )
@@ -179,7 +181,10 @@ class CallUnderTest:
                 turns.connected()
             if cooled is not None:
                 asyncio.get_running_loop().call_later(cooled[0], turns.cooled, cooled[1])
-            down, _ = await run_test(turns, frames_to_send=frames)
+            if isinstance(frames, OneByOne):
+                down = await run_one_by_one(turns, frames)
+            else:
+                down, _ = await run_test(turns, frames_to_send=frames)
             await outcome.settle()
         finally:
             await backend.aclose()
@@ -267,13 +272,72 @@ async def mano_call(make_client: ClientFactory, settings: Settings):
     return await CallUnderTest.of(settings, client, await start_conversation(client, "mano"))
 
 
-def one_by_one(*frames: Frame) -> list[Frame]:
-    """Space frames out as a person would. Client messages are system frames, which
-    otherwise overtake transcriptions still queued in the pipeline."""
-    spaced: list[Frame] = []
-    for frame in frames:
-        spaced += [frame, SleepFrame(0.05)]
-    return spaced
+class OneByOne(tuple[Frame, ...]):
+    """Frames sent as a person would send them: see `run_one_by_one`."""
+
+
+def one_by_one(*frames: Frame) -> OneByOne:
+    return OneByOne(frames)
+
+
+async def run_one_by_one(turns: CallTurns, frames: Sequence[Frame]) -> list[Frame]:
+    """Run `frames` through `turns` as `run_test` does, sending each only once the turn
+    the one before it set off, if any, is over, its reply done and the call's limits
+    checked. Spaced out by time instead, a client message, being a system frame, could
+    overtake a transcription still queued, and what came before the turn was over would
+    be a follow-on to it. Returns the frames that reached the end of the pipeline."""
+    received = Received()
+    worker = PipelineWorker(Pipeline([turns, received]), cancel_on_idle_timeout=False)
+    started = asyncio.Event()
+
+    @worker.event_handler("on_pipeline_started")
+    async def on_started(worker: PipelineWorker, frame: Frame) -> None:
+        started.set()
+
+    async def send() -> None:
+        await asyncio.wait_for(started.wait(), timeout=1)
+        turns_set_off = 0
+        for frame in frames:
+            if turns_set_off:  # (none waited for after the last: it may set none off)
+                await asyncio.wait_for(received.replies_over(turns_set_off), timeout=5)
+                await turns._inputs.join()  # over once the call's limits are checked
+            await worker.queue_frame(frame)
+            if isinstance(frame, TranscriptionFrame) or (
+                isinstance(frame, RTVIClientMessageFrame) and frame.type == "user-text"
+            ):
+                turns_set_off += 1
+        await worker.queue_frame(EndFrame())
+
+    runner = WorkerRunner(handle_sigint=False)
+    await runner.add_workers(worker)
+    await asyncio.gather(runner.run(), send())
+    return received.frames
+
+
+class Received(FrameProcessor):
+    """The end of the pipeline: keeps what reaches it downstream, as `run_test` does, and
+    counts the replies over, each told the browser with `done` or `error`."""
+
+    def __init__(self) -> None:
+        super().__init__(enable_direct_mode=True)
+        self.frames: list[Frame] = []
+        self._replies_over = 0
+        self._counted = asyncio.Event()
+
+    async def process_frame(self, frame: Frame, direction: FrameDirection) -> None:
+        await super().process_frame(frame, direction)
+        if direction is FrameDirection.DOWNSTREAM and not isinstance(frame, StartFrame | EndFrame):
+            self.frames.append(frame)
+            if isinstance(frame, RTVIServerMessageFrame) and frame.data["type"] in ("done", "error"):
+                self._replies_over += 1
+                self._counted.set()
+        await self.push_frame(frame, direction)
+
+    async def replies_over(self, n: int) -> None:
+        """Wait till `n` replies are over."""
+        while self._replies_over < n:
+            self._counted.clear()
+            await self._counted.wait()
 
 
 def spoken(text: str) -> TranscriptionFrame:

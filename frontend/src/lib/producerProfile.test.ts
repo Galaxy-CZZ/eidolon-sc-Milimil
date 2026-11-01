@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   chooseBirthMonth,
+  cityLabel,
   clampFormOfAddress,
   daysInMonth,
   fromDraft,
@@ -10,7 +11,16 @@ import {
   toDraft,
 } from "@/lib/producerProfile";
 
-const blank = { formOfAddress: "", gender: "" as const, timezone: "", birthMonth: null, birthDay: null };
+const blank = {
+  formOfAddress: "",
+  gender: "" as const,
+  timezone: "",
+  birthMonth: null,
+  birthDay: null,
+  city: null,
+  findsCities: false,
+};
+const harbin = { name: "哈尔滨", adm2: "哈尔滨", adm1: "黑龙江省", country: "中国", latitude: 45.80298, longitude: 126.53505 };
 
 describe("toDraft", () => {
   it("把没有设置的项变成空白，表示沿用默认", () => {
@@ -20,6 +30,8 @@ describe("toDraft", () => {
       timezone: "",
       birthMonth: null,
       birthDay: null,
+      city: null,
+      findsCities: false,
     });
   });
 
@@ -37,6 +49,8 @@ describe("toDraft", () => {
       timezone: "Asia/Tokyo",
       birthMonth: 2,
       birthDay: 29,
+      city: null,
+      findsCities: false,
     });
   });
 });
@@ -48,17 +62,27 @@ describe("fromDraft", () => {
       gender: null,
       timezone: null,
       birthday: null,
+      city: null,
     });
   });
 
   it("去掉称呼两端的空白，月日都选了就存成生日", () => {
     expect(
-      fromDraft({ formOfAddress: " 小林さん ", gender: "male", timezone: "Asia/Tokyo", birthMonth: 5, birthDay: 3 }),
+      fromDraft({
+        ...blank,
+        formOfAddress: " 小林さん ",
+        gender: "male",
+        timezone: "Asia/Tokyo",
+        birthMonth: 5,
+        birthDay: 3,
+        city: harbin,
+      }),
     ).toEqual({
       form_of_address: "小林さん",
       gender: "male",
       timezone: "Asia/Tokyo",
       birthday: { month: 5, day: 3 },
+      city: harbin,
     });
   });
 
@@ -76,7 +100,7 @@ describe("missingBirthDay", () => {
 });
 
 describe("chooseBirthMonth", () => {
-  const draft = { formOfAddress: "", gender: "" as const, timezone: "", birthMonth: 1, birthDay: 31 };
+  const draft = { ...blank, birthMonth: 1, birthDay: 31 };
 
   it("换到没有这一日的月份时清掉日期，要重选，而不是变成另一天", () => {
     expect(chooseBirthMonth(draft, 4)).toEqual({ ...draft, birthMonth: 4, birthDay: null });
@@ -92,7 +116,7 @@ describe("chooseBirthMonth", () => {
 });
 
 describe("sameDraft", () => {
-  const saved = { formOfAddress: "小林さん", gender: "" as const, timezone: "", birthMonth: 5, birthDay: 3 };
+  const saved = { ...blank, formOfAddress: "小林さん", birthMonth: 5, birthDay: 3, city: harbin };
 
   it("只差称呼两端空白的不算改动", () => {
     expect(sameDraft({ ...saved, formOfAddress: " 小林さん " }, saved)).toBe(true);
@@ -104,6 +128,21 @@ describe("sameDraft", () => {
     expect(sameDraft({ ...saved, timezone: "Asia/Tokyo" }, saved)).toBe(false);
     expect(sameDraft({ ...saved, birthMonth: 6 }, saved)).toBe(false);
     expect(sameDraft({ ...saved, birthDay: null }, saved)).toBe(false);
+    expect(sameDraft({ ...saved, city: null }, saved)).toBe(false);
+    expect(sameDraft({ ...saved, city: { ...harbin, latitude: 45.8 } }, saved)).toBe(false);
+  });
+
+  it("同一个城市的两份副本不算改动", () => {
+    expect(sameDraft({ ...saved, city: { ...harbin } }, saved)).toBe(true);
+  });
+});
+
+describe("cityLabel", () => {
+  it("上级和名字重了就不再写一遍", () => {
+    expect(cityLabel(harbin)).toBe("哈尔滨 · 黑龙江省 · 中国");
+    expect(
+      cityLabel({ name: "东城", adm2: "北京", adm1: "北京市", country: "中国", latitude: 39.9, longitude: 116.4 }),
+    ).toBe("东城 · 北京 · 中国");
   });
 });
 

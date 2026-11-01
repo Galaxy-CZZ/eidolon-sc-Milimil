@@ -33,10 +33,11 @@ describe("contentSecurityPolicy", () => {
     expect(policy.get("script-src")).toEqual(["'self'", "'unsafe-inline'"]);
   });
 
-  it("allows the data: and blob: images the share card is drawn through", () => {
+  it("allows the data: and blob: images the share card is drawn through, and the blob: audio her words are read aloud from", () => {
     const policy = directives(contentSecurityPolicy(undefined));
 
     expect(policy.get("img-src")).toEqual(["'self'", "data:", "blob:"]);
+    expect(policy.get("media-src")).toEqual(["'self'", "blob:"]);
   });
 
   it.each(["not a url", "javascript:alert(1)"])(

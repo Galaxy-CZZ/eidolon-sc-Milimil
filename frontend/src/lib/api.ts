@@ -2,6 +2,8 @@ import type { AffinityChange, AffinityStatus } from "@/lib/affinity";
 import type { Provider } from "@/lib/signIn";
 import {
   forgetOwnKeys,
+  readAloudModel,
+  readAloudOwnKeys,
   turnOwnKeys,
   type BailianRegion,
   type FishAudioModel,
@@ -16,9 +18,11 @@ import type { LLMOffer, LLMProvider } from "@/lib/llmProviders";
 import type { EffortHint } from "@/lib/reasoningEffort";
 import type { ServedBody } from "@/lib/barMixer";
 import type { VisitEvent } from "@/lib/barVisit";
+import type { Letter, LetterSummary } from "@/lib/letter";
 import type { Rewarded } from "@/lib/rewards";
 import { detectTimezone } from "@/lib/timezone";
 import type { Speaking } from "@/lib/call";
+import type { Said } from "@/lib/readAloud";
 import type { Emotion, Nod } from "@/lib/standAnimations";
 import type { Stats, StatsRange } from "@/lib/stats";
 
@@ -115,14 +119,16 @@ export type LastMessage =
   | Pick<ConversationEvent, "type" | "kind" | "created_at" | "gift_name" | "first_day" | "days_ago">
   | null;
 
-/** A character's newest conversation with the user, the last thing in it, and whether it has a
- * reach-out the user has not seen (GLOSSARY.md「没看过的搭话」), for the conversation list. */
+/** A character's newest conversation with the user, the last thing in it, whether it has a
+ * reach-out the user has not seen (GLOSSARY.md「没看过的搭话」), and whether she has a letter to the
+ * user they have not read (GLOSSARY.md「没读过的信」), for the conversation list. */
 export type LatestConversation = {
   character_id: string;
   conversation_id: string;
   created_at: string;
   last_message: LastMessage;
   unseen_reach_out: boolean;
+  unread_letter: boolean;
 };
 
 /** One of her conversations as the past conversations panel lists it; `title` is its conversation
@@ -229,6 +235,22 @@ export type ProducerProfile = {
   gender: Gender | null;
   timezone: string | null;
   birthday: Birthday | null;
+  /** Where the producer is, as `/api/cities` found it (GLOSSARY.md「制作人档案」). */
+  city?: City | null;
+};
+
+/** The profile as the backend answers with it, and whether the deployer can find cities
+ * (has a QWeather account): without, the city is neither shown nor any use. */
+export type SavedProfile = ProducerProfile & { finds_cities: boolean };
+
+/** A city, district or county, as QWeather names it in Chinese, and where it is. */
+export type City = {
+  name: string;
+  adm2: string;
+  adm1: string;
+  country: string;
+  latitude: number;
+  longitude: number;
 };
 
 /** The producer's birthday: month and day only, no year. */
@@ -464,6 +486,8 @@ export type SignInMethod = { provider: Provider; display_name: string; email: st
  * has them off.
  * `cycles`: the user's own switch for cycles (GLOSSARY.md「周期」); null where the deployer has them
  * off.
+ * `moments`: the user's own switch for moments (GLOSSARY.md「朋友圈」); null where the deployer has
+ * them off.
  * `sponsor_version`: the version of the deployer's sponsor code (GLOSSARY.md「赞赏」), when it was
  * uploaded, for `sponsorImageUrl`; null when users are not shown it (switched off, or no code). */
 export type Account = {
@@ -474,7 +498,13 @@ export type Account = {
   exempting_keys: OwnService[];
   reach_outs: boolean | null;
   cycles: boolean | null;
+  moments: boolean | null;
+  /** Whether the deployer has letters on (GLOSSARY.md「信」); the letters written stay to be read either way. */
+  letters: boolean;
   sponsor_version: string | null;
+  /** Whether the deployer has a key for speech synthesis now: her words are read aloud on it for those
+   * who keep none of their own in this browser (GLOSSARY.md「朗读」). */
+  deployer_tts: boolean;
 };
 
 /** Where the deployer's sponsor code of `version` (`Account.sponsor_version`) is read: a new address for
@@ -500,6 +530,18 @@ export async function getAccount(): Promise<Account> {
 export async function switchReachOuts(on: boolean): Promise<void> {
   await expectNoContent(
     await api("/api/account/reach-outs", {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ on }),
+    }),
+  );
+}
+
+/** Turn the user's own switch for moments on or off, for all the characters; refused where the
+ * deployer has them off. */
+export async function switchMoments(on: boolean): Promise<void> {
+  await expectNoContent(
+    await api("/api/account/moments", {
       method: "PUT",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ on }),
@@ -702,6 +744,106 @@ export async function getBar(): Promise<BarState> {
   return json(await api("/api/bar"));
 }
 
+/** Tokyo's weather as a moment came out: one of seven kinds. */
+export type WeatherKind = "clear" | "cloudy" | "overcast" | "fog" | "rain" | "snow" | "thunder";
+
+/** A post of hers in the user's moments (GLOSSARY.md「动态」): her Japanese, its subtitle, when it
+ * came out (ISO, with its offset), where she was (GLOSSARY.md「地点」), its Japanese name with a
+ * link to it on the map the deployer chooses, null for nowhere, and Tokyo's weather then, its kind
+ * and temperature in whole degrees Celsius, null if it could not be had; the other idols who have
+ * liked it so far, by character id, in the order they did, and their comments so far, in order.
+ * Those yet to show are not there. `image` is where its picture is read (GLOSSARY.md「配图」), the
+ * user's alone, null for none. `producer_liked`: whether the user likes it now; `producer_comment`:
+ * his comment on it, null for none; `reply`: her reply to that, null until it shows (and for none:
+ * which of the two is never told). */
+export type Moment = {
+  id: number;
+  character_id: string;
+  ja: string;
+  zh: string;
+  image: string | null;
+  place: { name: string; map: string } | null;
+  weather: { kind: WeatherKind; temperature: number } | null;
+  posted_at: string;
+  likes: string[];
+  comments: MomentComment[];
+  producer_liked: boolean;
+  producer_comment: ProducerComment | null;
+  reply: { ja: string; zh: string } | null;
+};
+
+/** A comment on a moment by another idol: her Japanese and its subtitle. */
+export type MomentComment = { character_id: string; ja: string; zh: string };
+
+/** The user's comment on a moment: as he wrote it, but for the spaces around it, and when (ISO). */
+export type ProducerComment = { text: string; commented_at: string };
+
+/** How many characters his comment may have at most, but for the spaces around it; the backend says
+ * so too (422). */
+export const COMMENT_LENGTH = 140;
+
+/** Likes one of his moments, or no longer, however he did. Gone (another's, or over 30 days old): 404. */
+export async function likeMoment(id: number, liked: boolean): Promise<void> {
+  await expectNoContent(await api(`/api/moments/${id}/like`, { method: liked ? "PUT" : "DELETE" }));
+}
+
+/** Comments on one of his moments, once (409 again): what is kept of it. */
+export async function commentOnMoment(id: number, text: string): Promise<ProducerComment> {
+  return json(
+    await api(`/api/moments/${id}/comment`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ text }),
+    }),
+  );
+}
+
+/** Deletes his comment on one of his moments, her reply to it with it. */
+export async function deleteMomentComment(id: number): Promise<void> {
+  await expectNoContent(await api(`/api/moments/${id}/comment`, { method: "DELETE" }));
+}
+
+/** The user's moments of the last 30 days that have come out, newest first, all at once. Refused while
+ * the deployer or the user has moments off (409). */
+export async function getMoments(): Promise<Moment[]> {
+  const body: { moments: Moment[] } = await json(await api("/api/moments"));
+  return body.moments;
+}
+
+/** The user's letters (GLOSSARY.md「信」), the latest first. */
+export async function listLetters(): Promise<LetterSummary[]> {
+  const body: { letters: LetterSummary[] } = await json(await api("/api/letters"));
+  return body.letters;
+}
+
+/** One of the user's letters, to read. */
+export async function getLetter(id: number): Promise<Letter> {
+  return json(await api(`/api/letters/${id}`));
+}
+
+/** Has the letter read, on every device. */
+export async function markLetterRead(id: number): Promise<void> {
+  const res = await api(`/api/letters/${id}/read`, { method: "PUT" });
+  if (!res.ok) await json(res);
+}
+
+/** Has the letter popped up, on every device, so it does not again. */
+export async function markLetterPopped(id: number): Promise<void> {
+  await expectNoContent(await api(`/api/letters/${id}/popped`, { method: "PUT" }));
+}
+
+/** Deletes the letter, and her voice reading it, for good. */
+export async function deleteLetter(id: number): Promise<void> {
+  await expectNoContent(await api(`/api/letters/${id}`, { method: "DELETE" }));
+}
+
+/** Whether a moment, or her reply to the user's comment, has come out since they last read the
+ * timeline (`getMoments`), on any device. Refused while the deployer or the user has moments off (409). */
+export async function getMomentsUnseen(): Promise<boolean> {
+  const body: { unseen: boolean } = await json(await api("/api/moments/unseen"));
+  return body.unseen;
+}
+
 /** Comes into the bar, bringing the user's own LLM (as `own_keys`) as a text turn does. Once the
  * server took it, the visit's first call, to be followed as it comes: `visit` first, then her lines
  * up to her order. Refused while the bar is closed (409), or over the limit (429, `retryAt` saying
@@ -771,6 +913,10 @@ export type DataPackageImported = {
   cycles: number;
   /** Those not: of a character not here, out of bounds, after today, or overlapping another. */
   cycles_skipped: number;
+  /** The letters she wrote that were imported (GLOSSARY.md「信」): only those not here already. */
+  letters: number;
+  /** Those not: of a character not here. */
+  letters_skipped: number;
 };
 
 /** Import a data package, the file itself as the body, streamed: the categories `include` names
@@ -795,11 +941,23 @@ export async function checkDataPackageExport(include: readonly string[]): Promis
   await expectNoContent(await api(`/api/account/data-package/export-check?${query}`));
 }
 
-export async function getProfile(): Promise<ProducerProfile> {
+export async function getProfile(): Promise<SavedProfile> {
   return json(await api("/api/profile"));
 }
 
-export async function saveProfile(profile: ProducerProfile): Promise<ProducerProfile> {
+/** The cities by `name`, the likeliest first, on the deployer's QWeather account. */
+export async function searchCities(name: string): Promise<City[]> {
+  const query = new URLSearchParams({ q: name });
+  return (await json<{ cities: City[] }>(await api(`/api/cities?${query}`))).cities;
+}
+
+/** The city nearest where the browser says the user is; null if none. The spot is not kept. */
+export async function nearestCity(latitude: number, longitude: number): Promise<City | null> {
+  const query = new URLSearchParams({ latitude: String(latitude), longitude: String(longitude) });
+  return (await json<{ city: City | null }>(await api(`/api/cities/nearest?${query}`))).city;
+}
+
+export async function saveProfile(profile: ProducerProfile): Promise<SavedProfile> {
   return json(
     await api("/api/profile", {
       method: "PUT",
@@ -889,15 +1047,33 @@ export async function getCallSetup(conversationId: string, own: readonly OwnServ
 
 /**
  * Sends one text turn, bringing the user's own LLM (as `own_keys`) if this browser keeps one for
- * them, and yields the reply's server-sent events as they arrive.
+ * them, and the model of their own key for speech synthesis, without the key, for her to write her
+ * delivery cues as it reads them (`read_aloud_model`, GLOSSARY.md「朗读」); and yields the reply's
+ * server-sent events as they arrive.
  */
 export async function* sendTurn(conversationId: string, text: string, userId: string): AsyncGenerator<TurnEvent> {
   const res = await api(`/api/conversations/${conversationId}/turns`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ text, own_keys: turnOwnKeys(userId) }),
+    body: JSON.stringify({ text, own_keys: turnOwnKeys(userId), read_aloud_model: readAloudModel(userId) }),
   });
   yield* serverSentEvents<TurnEvent>(res);
+}
+
+/**
+ * Her line read aloud (GLOSSARY.md「朗读」), as mp3, on the user's own key for speech synthesis if this
+ * browser keeps one for them (as `own_keys`), else on the deployer's. Throws as `json` does when it is
+ * not: a failure on the user's own key has the code `own_key`.
+ */
+export async function readAloud(said: Said, userId: string): Promise<ArrayBuffer> {
+  const line = said.kind === "reply" ? `messages/${said.id}` : `reach-outs/${said.id}`;
+  const res = await api(`/api/conversations/${said.conversationId}/${line}/read-aloud`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ own_keys: readAloudOwnKeys(userId) }),
+  });
+  if (!res.ok) await json(res);
+  return res.arrayBuffer();
 }
 
 /** The server-sent events of a response, each as it arrives; a refusal thrown as `json` throws it. */

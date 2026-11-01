@@ -24,12 +24,16 @@ export type ItemName =
   | "tts"
   | "stt"
   | "image"
+  | "gpt_image"
   | "judge"
   | "judge_thresholds"
   | "rerank"
   | "limits"
   | "affinity"
   | "reach_outs"
+  | "letters"
+  | "moments"
+  | "qweather"
   | "schedule"
   | "cycles"
   | "bar"
@@ -80,6 +84,7 @@ export const CONFIG_TABS = [
   "models",
   "voice",
   "image",
+  "weather",
   "network",
   "status",
   "limits",
@@ -97,10 +102,11 @@ export type ConfigTab = (typeof CONFIG_TABS)[number];
 export const TAB_ITEMS: Record<ConfigTab, ItemName[]> = {
   models: ["chat_llm", "memory_llm", "judge", "judge_thresholds", "rerank"],
   voice: ["tts", "stt"],
-  image: ["image"],
+  image: ["image", "gpt_image"],
+  weather: ["qweather"],
   network: ["proxy"],
   status: ["service_status"],
-  limits: ["limits", "affinity", "reach_outs", "schedule", "cycles", "bar"],
+  limits: ["limits", "affinity", "reach_outs", "letters", "moments", "schedule", "cycles", "bar"],
   registration: ["registration"],
   sponsor: [],
   prices: [],
@@ -163,6 +169,7 @@ export const PROXIED_SERVICES = [
   "tts",
   "stt",
   "image",
+  "gpt_image",
   "own_llm",
   "own_tts",
   "own_stt",
@@ -207,8 +214,14 @@ export function modelChoice(options: readonly string[], model: string): string {
   return options.includes(model) ? model : CUSTOM_MODEL;
 }
 
+/** How carefully GPT Image draws, as OpenAI takes it: `xhigh` and `max` from its 2.5 models on. */
+export const GPT_IMAGE_QUALITIES = ["low", "medium", "high", "auto", "xhigh", "max"] as const;
+
 /** Who may sign up (GLOSSARY.md「注册方式」): anyone, or only those who bring an invite link. */
 export const REGISTRATIONS = ["open", "invite"] as const;
+
+/** Where a moment's place links to on the map (GLOSSARY.md「地点」): OpenStreetMap, Google Maps or Amap. */
+export const MAP_SITES = ["osm", "google", "amap"] as const;
 
 /** How many of the latest minutes the service status may go by, as the backend takes them. */
 export const STATUS_WINDOWS = ["10", "30", "60"] as const;
@@ -219,6 +232,7 @@ export const LIMIT_FIELDS = [
   "calls_per_hour",
   "photos_per_hour",
   "visits_per_hour",
+  "read_alouds_per_hour",
   "call_minutes",
   "turns_per_call",
   "concurrent_calls",
@@ -325,6 +339,19 @@ export const ITEM_SPECS: Record<ItemName, ItemSpec> = {
     ],
     tried: true,
   },
+  // 无人配图的 GPT Image（GLOSSARY.md「生图」）：地址、key、模型、质量、风格句（清空是默认的那句）。保存前真生成一张风景来检查。
+  gpt_image: {
+    rows: ["base_url", "model", "quality", "style", "api_key"],
+    secrets: ["api_key"],
+    form: [
+      { name: "base_url", kind: "text" },
+      { name: "model", kind: "text" },
+      { name: "quality", kind: "select", options: GPT_IMAGE_QUALITIES },
+      { name: "style", kind: "clearableText" },
+      { name: "api_key", kind: "secret" },
+    ],
+    tried: true,
+  },
   judge_thresholds: THRESHOLD(["recall", "emotion", "out_of_line", "manipulation", "photo"]),
   rerank: THRESHOLD(["references", "memories"]),
   limits: {
@@ -352,6 +379,39 @@ export const ITEM_SPECS: Record<ItemName, ItemSpec> = {
       { name: "per_day", kind: "positive" },
     ],
     tried: false,
+  },
+  // 信（GLOSSARY.md「信」）：只有一个总开关。不试调。
+  letters: {
+    rows: ["enabled"],
+    secrets: [],
+    form: [{ name: "enabled", kind: "switch" }],
+    tried: false,
+  },
+  // 朋友圈（GLOSSARY.md「朋友圈」）：总开关，每位用户每天合计最多几条，地名点开跳哪家地图，每位用户每天她最多回几条评论。不试调。
+  moments: {
+    rows: ["enabled", "per_day", "map", "replies_per_day"],
+    secrets: [],
+    form: [
+      { name: "enabled", kind: "switch" },
+      { name: "per_day", kind: "positive" },
+      { name: "map", kind: "select", options: MAP_SITES },
+      { name: "replies_per_day", kind: "positive" },
+    ],
+    tried: false,
+  },
+  // 和风天气（GLOSSARY.md「制作人档案」）：找制作人的城市、查那边的预警用的账号，JWT 认证的五样都要填。
+  // 保存前按坐标反查一次北京。
+  qweather: {
+    rows: ["host", "developer_id", "project_id", "key_id", "private_key"],
+    secrets: ["private_key"],
+    form: [
+      { name: "host", kind: "text" },
+      { name: "developer_id", kind: "text" },
+      { name: "project_id", kind: "text" },
+      { name: "key_id", kind: "text" },
+      { name: "private_key", kind: "secret" },
+    ],
+    tried: true,
   },
   // 日程（GLOSSARY.md「日程」）：只有一个开关。不试调。
   schedule: {

@@ -14,13 +14,15 @@ is done.
 
 Whose keys a turn or call runs on is answered here, once as it starts (`for_turn`,
 `for_call`), from the user's own keys it brings (`BroughtKeys`): theirs where it brought
-them, the deployer's otherwise, with whether it counts towards the user's limit. The
+them, the deployer's otherwise, with whether it counts towards the user's limit. So is
+whose key her words are read aloud on (GLOSSARY.md「朗读」, `for_read_aloud`). The
 deployer's are those of the live configuration as the turn or call starts (see
 `live_config`), held until it releases them as it ends. Nothing downstream tells the
 user's keys from the deployer's. Whether a turn or call counts is answered by one rule,
 from the kind of use, the services it brings keys for and, for a call, the exempting keys
 the live configuration has then (GLOSSARY.md「免限额密钥」), touching no key (`exempt`): as
-it starts, before a call is placed (`call_exempt`), and for the settings page.
+it starts, before a call is placed (`call_exempt`), and for the settings page. A read-aloud
+counts unless it is on the user's own key for speech synthesis.
 
 Before the browser keeps an own key, it is tried once, keeping nothing (`check_llm`,
 `check_memory_llm`, `check_tts`, `check_stt`, `check_image`, the last generating a picture
@@ -136,6 +138,14 @@ def named_services(own: str) -> frozenset[Service]:
     if unknown := named - set(SERVICES):
         raise UnknownService(unknown)
     return frozenset(s for s in SERVICES if s in named)
+
+
+class NoSpeechSynthesis(Exception):
+    """Her words cannot be read aloud (GLOSSARY.md「朗读」): there is no key for speech
+    synthesis, neither the user's own nor the deployer's."""
+
+    def __init__(self) -> None:
+        super().__init__("这个部署没有语音合成，朗读不了")
 
 
 class CallsUnavailable(Exception):
@@ -403,6 +413,12 @@ class DeployerKeys:
     """The chat model as calls' turns use it, at its reasoning effort in calls; None for
     `chat_llm`."""
 
+    @property
+    def read_aloud_model(self) -> FishAudioModel | None:
+        """The model her words would be read aloud with on these keys (GLOSSARY.md「朗读」);
+        None without a key for speech synthesis."""
+        return self.tts_model if self.tts is not None else None
+
     def lease(self) -> "DeployerLease":
         """These keys, which never change, for a turn or call."""
         return DeployerLease(self, _nothing)
@@ -457,6 +473,18 @@ class CallKeys:
     """The deployer's, as the call connected (see `DeployerKeys.emotions`)."""
     own_llm: bool = False
     """Whether `llms` are the user's own LLM."""
+
+
+@dataclass(frozen=True)
+class ReadAloudKeys:
+    """Whose key her words are read aloud on (GLOSSARY.md「朗读」), with which model, and
+    whether it is the user's own, which counts towards nothing."""
+
+    tts: str
+    tts_model: FishAudioModel
+    own: bool
+    release: Callable[[], None] = field(default=_nothing, compare=False)
+    """Called once it has been read aloud, to let go of the deployer's keys it was on."""
 
 
 class OwnKeys:
@@ -518,14 +546,43 @@ class OwnKeys:
             tts_model, deployer.emotions, own_llm=brought.llm is not None,
         )
 
+    def for_read_aloud(self, brought: BroughtKeys) -> ReadAloudKeys:
+        """Whose key her words are read aloud on, bringing `brought`: the user's own for
+        speech synthesis, with the model they chose, if it brings one; else the deployer's,
+        with the model the live configuration has now. Raises NoSpeechSynthesis if there is
+        neither."""
+        if brought.tts is not None:
+            return ReadAloudKeys(brought.tts, brought.tts_model, own=True)
+        lease = self._deployer.lease()
+        if lease.keys.tts is None:
+            lease.release()
+            raise NoSpeechSynthesis()
+        return ReadAloudKeys(lease.keys.tts, lease.keys.tts_model, own=False, release=lease.release)
+
+    def read_aloud_model(self, own_model: FishAudioModel | None) -> FishAudioModel | None:
+        """The model her words would be read aloud with now: `own_model`, that of the
+        user's own key for speech synthesis, where their browser keeps one; else the
+        deployer's; None with neither, when nothing is read aloud."""
+        if own_model is not None:
+            return own_model
+        lease = self._deployer.lease()
+        try:
+            return lease.keys.read_aloud_model
+        finally:
+            lease.release()
+
     def exempt(self, kind: UsageKind, services: Iterable[Service]) -> bool:
         """Whether a use of `kind` bringing the user's own keys for `services` counts
-        towards nothing: a text turn on their own LLM; a call on their own keys for every
-        one of the exempting keys now (GLOSSARY.md「免限额密钥」). Only the rule: no key is
-        touched, and neither the user's own limits nor whether calls are available are
-        asked."""
+        towards nothing: a text turn on their own LLM; a read-aloud on their own key for
+        speech synthesis; a call on their own keys for every one of the exempting keys now
+        (GLOSSARY.md「免限额密钥」). Only the rule: no key is touched, and neither the user's
+        own limits nor whether calls are available are asked."""
         own = frozenset(services)
-        return "llm" in own if kind == "turn" else self._exempting() <= own
+        if kind == "turn":
+            return "llm" in own
+        if kind == "read_aloud":
+            return "tts" in own
+        return self._exempting() <= own
 
     def call_exempt(self, services: Iterable[Service]) -> bool:
         """Whether a call bringing the user's own keys for `services` would count towards

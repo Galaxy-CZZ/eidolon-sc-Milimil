@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useId, useMemo, useState } from "react";
 
 import { FailureNotice } from "@/components/app/FailureNotice";
+import { CityField } from "@/components/CityField";
 import { SettingsSection } from "@/components/app/SettingsSection";
 import { useSettingsValues } from "@/components/settings/SettingsValues";
 import { Button } from "@/components/ui/button";
@@ -241,6 +242,8 @@ export function ProducerProfileSettings() {
             <FieldDescription>{t.birthdayHint}</FieldDescription>
             {showDayMissing && <FieldError id={`${id}-birthday-error`}>{t.birthDayMissing}</FieldError>}
           </Field>
+
+          {draft.findsCities && <CityField id={`${id}-city`} city={draft.city} onChange={(city) => update({ city })} />}
 
           {failure && <FailureNotice failure={failure} />}
 

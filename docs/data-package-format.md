@@ -2,7 +2,7 @@
 
 数据包（`GLOSSARY.md`「数据包」）是用户在设置的「数据包」里导出的一个 zip：他自己的数据，带到这个部署或别的部署导入，接着用。它不是备份，也没有加密，是用户自己保管的明文。这份说明给别的部署者和以后的版本看：每个键的意思和版本规则。为什么好感度和礼物不在里面，见 ADR-0025。
 
-现在的格式是**第 3 版**。第 2 版在对话里加了她的搭话（`reach_outs`），第 3 版在对话事件里加了「她不太舒服了」（`unwell`），又加了一类「周期记录」（`cycles`），别的和第 1 版一样。
+现在的格式是**第 5 版**。第 2 版在对话里加了她的搭话（`reach_outs`），第 3 版在对话事件里加了「她不太舒服了」（`unwell`），又加了一类「周期记录」（`cycles`），第 4 版在制作人档案里加了所在城市（`city`），第 5 版加了一类「信」（`letters`），别的和第 1 版一样。
 
 ## zip 里有什么
 
@@ -18,17 +18,17 @@
 
 ```json
 {
-  "format": 3,
+  "format": 5,
   "exported_at": "2026-10-19T08:00:00.000000+00:00",
-  "categories": ["conversations", "photos", "memories", "profile", "cycles"],
-  "counts": { "conversations": 12, "photos": 3, "memories": 40, "profile": 1, "cycles": 9 }
+  "categories": ["conversations", "photos", "memories", "profile", "cycles", "letters"],
+  "counts": { "conversations": 12, "photos": 3, "memories": 40, "profile": 1, "cycles": 9, "letters": 2 }
 }
 ```
 
 - `format`：整数，这个包的格式版本。
 - `exported_at`：导出的时间。
-- `categories`：这个包里有哪几类，按 `conversations`、`photos`、`memories`、`profile`、`cycles` 的顺序。导出时没勾的类别不在这里。
-- `counts`：每类的条数，键同 `categories`。`profile` 是 1，`conversations` 是对话的段数，`photos` 是发出来了的照片的张数（就是 `photos/` 里的文件数，没发出去的不算），`memories` 是记忆的条数，`cycles` 是周期记录的条数。
+- `categories`：这个包里有哪几类，按 `conversations`、`photos`、`memories`、`profile`、`cycles`、`letters` 的顺序。导出时没勾的类别不在这里。
+- `counts`：每类的条数，键同 `categories`。`profile` 是 1，`conversations` 是对话的段数，`photos` 是发出来了的照片的张数（就是 `photos/` 里的文件数，没发出去的不算），`memories` 是记忆的条数，`cycles` 是周期记录的条数，`letters` 是信的封数。
 
 ## `data.json`
 
@@ -43,7 +43,15 @@
     "gender": "female",
     "timezone": "Asia/Tokyo",
     "birthday_month": 2,
-    "birthday_day": 29
+    "birthday_day": 29,
+    "city": {
+      "name": "东城",
+      "adm2": "北京",
+      "adm1": "北京市",
+      "country": "中国",
+      "latitude": 39.91755,
+      "longitude": 116.41876
+    }
   }
 }
 ```
@@ -52,6 +60,7 @@
 - `gender`：`"male"`、`"female"` 或 `null`（和原作一致，男性）。
 - `timezone`：IANA 时区名；`null` 是跟着设备。
 - `birthday_month`、`birthday_day`：生日的月和日，没有年；要么都有、要么都是 `null`。2 月 29 日可以。
+- `city`：制作人所在的城市（或区县），和风天气给的中文名：`name` 是它自己，`adm2` 是所在的市，`adm1` 是省或州，`country` 是国家，各最多 40 个字，除 `name` 外可以是空字符串；`latitude`、`longitude` 是它的中心坐标（WGS-84），不是用户自己的位置。`null` 是没设。第 4 版起才有，更老的包里出现就当坏包；老的包没有这个键，导入时当作 `null`。
 
 导入时勾了「制作人档案」就整份覆盖：包里是 `null` 的项，这里也清空、沿用默认。和这里现有的一模一样时不算导入了档案。
 
@@ -218,6 +227,38 @@
 
 周期在这个部署上关着时（部署者关了或用户自己关了）也照样导出、导入。
 
+### `letters`：信
+
+第 5 版起才有。她写给制作人的信（`GLOSSARY.md`「信」），按写好的先后排：
+
+```json
+{
+  "letters": [
+    {
+      "character_id": "mano",
+      "character_name": "櫻木真乃",
+      "occasions": ["close"],
+      "day": "2026-09-25",
+      "written_at": "2026-09-25T04:00:00.000000+00:00",
+      "salutation": "[softly] プロデューサーさんへ",
+      "paragraphs": [
+        { "ja": "[smiling] いつもありがとうございます。", "zh": "一直以来谢谢你。" },
+        { "ja": "これからもよろしくお願いします。", "zh": "今后也请多关照。" }
+      ]
+    }
+  ]
+}
+```
+
+- `character_id`、`character_name`：写信的角色。名字只给人看，导入时不用；导出的部署上已经没有她时是 `null`。
+- `occasions`：为什么写，至少一个、不重复：`close`（第一次升到亲近）、`intimate`（第一次升到亲密）、`complete`（集齐）、`her_birthday`（她的生日）、`producer_birthday`（制作人的生日）、`anniversary`（相识纪念）。别的值当坏包。
+- `day`：写信那天，日历日 `YYYY-MM-DD`，按制作人所在的时区。
+- `written_at`：写好的时间。
+- `salutation`：抬头，日语，照模型写的原样带着语气提示。
+- `paragraphs`：各段，至少一段：`ja` 是日语原文，带着语气提示；`zh` 是中文。
+
+她的语音、读没读过、弹没弹过都不在包里。导入的信算读过、弹过，没有语音，只有字和配乐。角色不在这个部署的角色配置里的跳过，结果里的 `letters_skipped` 是跳过的封数；这位用户已经有她同一时间写好的信，就当是这一封、不再加。结果里的 `letters` 是导入的封数。信在这个部署上关着时也照样导出、导入。更早的包里有这一类就当坏包。
+
 ## 时间
 
 所有时间都是带时区的 ISO 8601。导出成库里的写法：UTC、带微秒，比如 `2026-10-19T08:00:00.000000+00:00`。导入时先解析，再按同一种写法写回；不带时区或解析不了的，整包当坏包。
@@ -228,7 +269,7 @@
 - 改格式时 `format` 加一，旧版本的读法保留：新版本能导入所有老格式。
 - 坏包一律拒绝（错误码 `broken`）：zip 打不开，条目多了或少了，JSON 不合这份说明，时间解析不了，包内 ID 引用不上，`categories` 和 `data.json` 里的键对不上，照片文件解不开或和照片对不上。
 - 导入要么全部写进去，要么什么也不写。
-- 同一个包导入两次，第二次什么也不多出来：对话按开始时间、记忆按原文认出已经有了的，周期记录和已有的重叠就跳过，档案和这里一样就不算导入。
+- 同一个包导入两次，第二次什么也不多出来：对话按开始时间、记忆按原文认出已经有了的，周期记录和已有的重叠就跳过，信按角色和写好的时间认出已经有了的，档案和这里一样就不算导入。
 
 ## 大小
 

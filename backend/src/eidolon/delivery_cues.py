@@ -23,6 +23,7 @@ TAG_READERS: frozenset[FishAudioModel] = frozenset({"drama-3"})
 _CLOSERS = {"[": "]", "(": ")）", "（": ")）", "【": "】", "<": ">"}
 _CUE = re.compile(r"\[[A-Za-z][A-Za-z ,'\-]*\]")
 _TAG = re.compile(rf"<(/?)(?:{'|'.join(PAIRED_TAGS)})>")
+_SPACES = re.compile(r" {2,}")
 LONGEST_CUE = 80
 """An opening bracket not closed within this many characters is not a cue but part of
 the line, and goes on as written rather than holding the line back."""
@@ -103,6 +104,12 @@ def without_cues(text: str) -> str:
     line = CueFilter()
     shown, _ = line.feed(text)
     return shown + line.finish()[0]
+
+
+def without_written_cues(text: str) -> str:
+    """`text` without its well-formed cues, in square brackets or paired tags, but with
+    anything else in brackets kept as written: a kaomoji, as moments have them, is no cue."""
+    return _SPACES.sub(" ", _TAG.sub("", _CUE.sub("", text))).strip()
 
 
 def voiced(text: str) -> str:

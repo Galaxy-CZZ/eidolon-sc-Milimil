@@ -21,7 +21,7 @@ LIMITS = "/api/admin/config/limits"
 ENV_LIMITS = {
     "turns_per_hour": 60, "calls_per_hour": 5, "photos_per_hour": 5, "call_minutes": 10,
     "turns_per_call": 2, "concurrent_calls": 10, "visits_per_hour": 5,
-    "history_turns": 20, "exempting_llm": True, "exempting_tts": True, "exempting_stt": True,
+    "read_alouds_per_hour": 60, "history_turns": 20, "exempting_llm": True, "exempting_tts": True, "exempting_stt": True,
 }
 
 

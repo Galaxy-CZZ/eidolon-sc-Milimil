@@ -18,6 +18,7 @@ import pytest
 
 from eidolon import data_package
 from eidolon.config import Settings
+from tests.test_producer_profile import NO_CITY
 from tests.conftest import ClientFactory
 from tests.fakes import (
     FAKE_JUDGE,
@@ -318,7 +319,7 @@ async def test_conversations_with_someone_not_here_are_skipped_and_the_user_told
             {"character_name": "七草はづき", "conversations": 2},
             {"character_name": "chiyuki", "conversations": 1},
         ],
-        "cycles": 0, "cycles_skipped": 0,
+        "cycles": 0, "cycles_skipped": 0, "letters": 0, "letters_skipped": 0,
     }
     assert await said_in(client) == ["2"]
     assert await told_in(client) == {"制作人住在大阪": None, "制作人养了猫": "2"}
@@ -504,7 +505,7 @@ async def test_an_import_failing_halfway_leaves_nothing_behind(
         await import_package(client, package, "conversations,memories,profile")
 
     assert await hers(client) == []
-    assert (await client.get("/api/profile")).json() == EMPTY_PROFILE
+    assert (await client.get("/api/profile")).json() == {**EMPTY_PROFILE, **NO_CITY}
     assert await memories(client) == []
     monkeypatch.undo()
     for _ in range(3):  # nor did it count as one of today's

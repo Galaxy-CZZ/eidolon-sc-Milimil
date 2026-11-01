@@ -32,6 +32,7 @@ import { DEFAULT_APPEARANCE, keepAppearance, loadAppearance, withAppearance, typ
 import {
   createConversation,
   getAccount,
+  getMomentsUnseen,
   getPhoto,
   listCharacters,
   listConversations,
@@ -56,7 +57,8 @@ import { later } from "@/lib/seenOnDevice";
 import { MicSheet } from "./MicSheet";
 import { useCallTones } from "./useCallTones";
 
-/** 标签页在前台时多久重新拉一次摘要和最近一次到账：她到点的搭话、别处做完的任务最多晚这么久出现（切回标签页时马上拉一次）。 */
+/** 标签页在前台时多久重新拉一次摘要、最近一次到账和朋友圈有没有新的：她到点的搭话、别处做完的任务、新露出的动态最多晚这么久出现
+ * （切回标签页时马上拉一次）。 */
 const LIST_POLL_MS = 60_000;
 
 /** 正在和谁通话，列表那一行和外壳顶上的通话条据此显示「正在呼叫…」「通话中 mm:ss」；从外壳持有的 LiveConversation 的快照算出。 */
@@ -84,6 +86,15 @@ export type Directory = {
    * 另外在玩法页的任何一级上都不出（`navDots`）。最近一次到账随摘要每分钟拉一次；回合、送礼带着到账时当场更新。
    */
   newRewards: boolean;
+  /**
+   * 朋友圈有没有新的，导航「朋友圈」上的点（GLOSSARY.md「朋友圈」）：上次打开朋友圈页以后（在哪台设备上都算）露出了新动态或她的回复。
+   * 朋友圈开着时随摘要每分钟问一次服务器；朋友圈页开着时那一次改成页面重读时间线（`rereadOnPoll`）。朋友圈关着时为 false。
+   */
+  newMoments: boolean;
+  /** 朋友圈页读到了时间线（服务器已经记成打开过）：点先在本地清掉，这之前发出去的「有没有新的」回来了也不再点亮。 */
+  momentsRead: () => void;
+  /** 朋友圈页开着时登记重读时间线的办法：外壳每分钟的那次轮询改成调它，不再问「有没有新的」。返回取消登记的函数。 */
+  rereadOnPoll: (reread: () => void) => () => void;
   /** 已知的最近一次到账（ISO）；玩法页和子页据此知道自己读到的状态落后了。 */
   rewardedAt: string | null;
   /** 玩法页或子页读到（或送礼改了）礼物状态：开关和最近一次到账以它为准。 */
@@ -177,6 +188,10 @@ export function DirectoryProvider({ children }: { children: ReactNode }) {
   // 好感度和礼物开没开、最近一次到账；这台设备上看过的最近一次到账。
   const [rewards, setRewards] = useState<{ isOpen: boolean; at: string | null }>({ isOpen: false, at: null });
   const [rewardsSeenAt, setRewardsSeenAt] = useState<string | null>(null);
+  // 朋友圈有没有新的；第几次读到时间线（拉出去之后又读到了的，拉回来的不算）；朋友圈页开着时它登记的重读。
+  const [newMoments, setNewMoments] = useState(false);
+  const momentsReadCount = useRef(0);
+  const momentsReread = useRef<(() => void) | null>(null);
   // 外壳持有的那段对话：状态给渲染，ref 给回调在点击、卸下这一刻读。
   const [held, setHeld] = useState<LiveConversation | null>(null);
   const heldRef = useRef<LiveConversation | null>(null);
@@ -234,6 +249,33 @@ export function DirectoryProvider({ children }: { children: ReactNode }) {
     getGiftState().then(giftsRead, () => {});
   }, [giftsRead]);
 
+  /** 问一次朋友圈有没有新的；问不到时留着上一次的。 */
+  const checkMoments = useCallback(() => {
+    const since = momentsReadCount.current;
+    getMomentsUnseen().then(
+      (unseen) => momentsReadCount.current === since && setNewMoments(unseen),
+      () => {},
+    );
+  }, []);
+
+  const momentsRead = useCallback(() => {
+    momentsReadCount.current += 1;
+    setNewMoments(false);
+  }, []);
+
+  // 朋友圈关掉了：点的状态清掉，再打开时不先亮着关之前的。
+  const momentsOn = account?.moments === true;
+  useEffect(() => {
+    if (!momentsOn) setNewMoments(false);
+  }, [momentsOn]);
+
+  const rereadOnPoll = useCallback((reread: () => void) => {
+    momentsReread.current = reread;
+    return () => {
+      if (momentsReread.current === reread) momentsReread.current = null;
+    };
+  }, []);
+
   const refresh = useCallback(() => {
     const since = seenCount.current;
     listLatestConversations().then(
@@ -265,20 +307,26 @@ export function DirectoryProvider({ children }: { children: ReactNode }) {
           setRewardsSeenAt(rewardsSeenUpTo(account.id));
           setLatest(received(summaries, since));
           checkRewards();
+          if (account.moments === true && !momentsReread.current) checkMoments();
         },
         (e) => !cancelled && setFailure(toFailure(e)),
       );
     return () => {
       cancelled = true;
     };
-  }, [attempt, received, checkRewards]);
+  }, [attempt, received, checkRewards, checkMoments]);
 
-  // 开着网站时她到点的搭话、别处做完的任务不用刷新就出现：载入了才拉，后台标签页不拉。
+  // 开着网站时她到点的搭话、别处做完的任务、新露出的动态不用刷新就出现：载入了才拉，后台标签页不拉。
   useWhileVisible(
     () => {
       if (configured && !failure) {
         refresh();
         checkRewards();
+        // 朋友圈开着才拉：朋友圈页开着时重读时间线，否则问有没有新的。
+        if (momentsOn) {
+          if (momentsReread.current) momentsReread.current();
+          else checkMoments();
+        }
       }
     },
     LIST_POLL_MS,
@@ -468,6 +516,9 @@ export function DirectoryProvider({ children }: { children: ReactNode }) {
           !giftsInView && hasNewRewards({ isOpen: rewards.isOpen, rewardedAt: rewards.at, seenAt: rewardsSeenAt }),
         rewardedAt: rewards.at,
         giftsRead,
+        newMoments: momentsOn && newMoments,
+        momentsRead,
+        rereadOnPoll,
         call,
         held,
         isHeldShown,

@@ -40,7 +40,7 @@ from tests.fakes import (
     build_faked,
     context_of,
 )
-from tests.test_call_turns import NOW, one_by_one, spoken
+from tests.test_call_turns import NOW, spoken
 from tests.test_own_image import MINE, MY_KEY, keys_of, photo_uses
 from tests.test_photos import IMAGE, REPLY, asking
 from tests.test_text_turn import start_conversation
@@ -149,7 +149,7 @@ async def test_asked_in_a_call_she_sends_one_told_as_it_is_generated_and_as_it_c
     image = FakeImageService()
     spoken_text, messages = await call(
         settings, conversation_id, FakeLLM(REPLY), image,
-        one_by_one(spoken(ASKED), SleepFrame(0.5)),
+        [spoken(ASKED), SleepFrame(0.5)],
     )
     record = await record_of(client, conversation_id)
 
@@ -175,7 +175,7 @@ async def test_one_not_sent_is_told_why_while_the_call_is_on(
     image.status = 500
     _, messages = await call(
         settings, conversation_id, FakeLLM(REPLY), image,
-        one_by_one(spoken(ASKED), SleepFrame(0.5)),
+        [spoken(ASKED), SleepFrame(0.5)],
     )
 
     [_, failed] = photo_messages(messages)
@@ -190,7 +190,7 @@ async def test_one_out_after_the_call_is_over_is_told_no_more_and_kept_with_her_
     image.gate = asyncio.Event()
     _, messages = await call(
         settings, conversation_id, FakeLLM(REPLY), image,
-        one_by_one(spoken(ASKED), SleepFrame(0.3)), after=image.gate,
+        [spoken(ASKED), SleepFrame(0.3)], after=image.gate,
     )
     record = await record_of(client, conversation_id)
 
@@ -208,11 +208,11 @@ async def test_with_the_users_photos_used_up_the_call_tells_the_browser_before_d
     limited = replace(settings, usage_limits=UsageLimits(photos_per_hour=1))
     await call(
         limited, conversation_id, FakeLLM(REPLY), image,
-        one_by_one(spoken(ASKED), SleepFrame(0.3)), after=asyncio.Event(),
+        [spoken(ASKED), SleepFrame(0.3)], after=asyncio.Event(),
     )
     _, messages = await call(
         limited, conversation_id, FakeLLM(REPLY), image,
-        one_by_one(spoken(ASKED), SleepFrame(0.3)),
+        [spoken(ASKED), SleepFrame(0.3)],
     )
 
     assert photo_messages(messages) == []
@@ -229,7 +229,7 @@ async def test_in_a_call_without_image_generation_she_is_told_she_cannot_send_on
     llm = FakeLLM(REPLY)
     spoken_text, messages = await call(
         replace(settings, image=None), conversation_id, llm, image,
-        one_by_one(spoken(ASKED), SleepFrame(0.3)),
+        [spoken(ASKED), SleepFrame(0.3)],
     )
 
     assert CANNOT_SEND in context_of(llm.prompts[0])

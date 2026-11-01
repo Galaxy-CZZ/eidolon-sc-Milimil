@@ -261,6 +261,7 @@ describe("limits", () => {
     calls_per_hour: UNLIMITED,
     photos_per_hour: "5",
     visits_per_hour: "3",
+    read_alouds_per_hour: "60",
     call_minutes: "10",
     turns_per_call: "40",
     concurrent_calls: "10",
@@ -282,6 +283,7 @@ describe("limits", () => {
         calls_per_hour: 0,
         photos_per_hour: 5,
         visits_per_hour: 3,
+        read_alouds_per_hour: 60,
         call_minutes: 10,
         turns_per_call: 40,
         concurrent_calls: 10,
@@ -351,7 +353,7 @@ describe("tried", () => {
     const tried = Object.entries(ITEM_SPECS)
       .filter(([, spec]) => spec.tried)
       .map(([name]) => name);
-    expect(tried).toEqual(["chat_llm", "memory_llm", "tts", "stt", "judge", "image", "proxy"]);
+    expect(tried).toEqual(["chat_llm", "memory_llm", "tts", "stt", "judge", "image", "gpt_image", "qweather", "proxy"]);
   });
 });
 
@@ -443,6 +445,43 @@ describe("image", () => {
   });
 });
 
+describe("GPT Image", () => {
+  const gpt = ITEM_SPECS.gpt_image;
+  const effective: Shown = {
+    base_url: "https://api.openai.com/v1",
+    api_key_last4: "9876",
+    model: "gpt-image-2",
+    quality: "medium",
+    style: "Flat cel-shaded anime background art.",
+  };
+  const form = formOf(gpt, effective);
+
+  it("sits beside image generation, with a proxy switch of its own after it", () => {
+    expect(TAB_ITEMS.image).toEqual(["image", "gpt_image"]);
+    expect(PROXIED_SERVICES.indexOf("gpt_image")).toBe(PROXIED_SERVICES.indexOf("image") + 1);
+  });
+
+  it("sends the address, the model, a quality chosen and the art style, an emptied one as none", () => {
+    expect(form).toEqual({
+      base_url: "https://api.openai.com/v1",
+      model: "gpt-image-2",
+      quality: "medium",
+      style: "Flat cel-shaded anime background art.",
+      api_key: "",
+    });
+    expect(changeOf(gpt, { ...form, quality: "high", style: " ", api_key: "sk-new" }, true)).toEqual({
+      change: {
+        base_url: "https://api.openai.com/v1",
+        model: "gpt-image-2",
+        quality: "high",
+        style: null,
+        api_key: "sk-new",
+      },
+    });
+    expect(changeOf(gpt, { ...form, model: " " }, true)).toEqual({ problems: [{ field: "model", reason: "required" }] });
+  });
+});
+
 describe("reach-outs", () => {
   const spec = ITEM_SPECS.reach_outs;
 
@@ -460,6 +499,18 @@ describe("reach-outs", () => {
   });
 });
 
+describe("moments", () => {
+  const spec = ITEM_SPECS.moments;
+
+  it("send the switch, how many a day, which map and how many comments a day she replies to", () => {
+    const form = formOf(spec, { enabled: true, per_day: 3, map: "osm", replies_per_day: 10 });
+    expect(form).toEqual({ enabled: "true", per_day: "3", map: "osm", replies_per_day: "10" });
+    expect(changeOf(spec, { ...form, map: "amap", replies_per_day: "5" }, true)).toEqual({
+      change: { enabled: true, per_day: 3, map: "amap", replies_per_day: 5 },
+    });
+  });
+});
+
 describe("schedule", () => {
   const spec = ITEM_SPECS.schedule;
 
@@ -470,8 +521,17 @@ describe("schedule", () => {
 });
 
 describe("cycles and the bar", () => {
-  it("are cards of limits and play, after the schedule", () => {
-    expect(TAB_ITEMS.limits).toEqual(["limits", "affinity", "reach_outs", "schedule", "cycles", "bar"]);
+  it("are cards of limits and play: letters and moments after reach-outs, cycles and the bar after the schedule", () => {
+    expect(TAB_ITEMS.limits).toEqual([
+      "limits",
+      "affinity",
+      "reach_outs",
+      "letters",
+      "moments",
+      "schedule",
+      "cycles",
+      "bar",
+    ]);
   });
 });
 

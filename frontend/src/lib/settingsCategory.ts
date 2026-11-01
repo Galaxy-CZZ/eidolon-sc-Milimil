@@ -4,9 +4,10 @@
 // the same category. The old addresses (`/settings?tab=…`, `/memories`) are sent to the new paths,
 // and settings addresses we do not know to `/settings`. Each row of the first level shows the
 // category's current value under its name (「设置：一级」). 「搭话」 is there only where the deployer
-// has reach-outs on (.scratch/proactive-messages spec「前端」), 「周期」 only where the deployer has
-// cycles on (.scratch/cycle-her spec「开关」); the address of either elsewhere goes back to
-// `/settings` from its page, as the server cannot tell the account from the address.
+// has reach-outs on (.scratch/proactive-messages spec「前端」), 「朋友圈」 only where the deployer has
+// moments on (.scratch/moments spec「前端」), 「周期」 only where the deployer has cycles on
+// (.scratch/cycle-her spec「开关」); the address of any of them elsewhere goes back to `/settings`
+// from its page, as the server cannot tell the account from the address.
 
 import { copy } from "@/i18n";
 import type { Account } from "@/lib/api";
@@ -19,7 +20,7 @@ import { PROVIDER_LABELS, type Provider } from "@/lib/signIn";
 /** The first level's groups, top to bottom, with a separator between each two. */
 const SETTINGS_GROUPS = [
   ["profile", "memories", "stats"],
-  ["call", "reach-outs", "cycles", "appearance", "own-keys"],
+  ["call", "reach-outs", "moments", "cycles", "appearance", "own-keys"],
   ["sign-in", "data-package"],
   ["about"],
 ] as const;
@@ -32,17 +33,22 @@ const ROOT = "/settings";
 
 /** The user's own switches the account says: each null where the deployer has it off, or the account
  * not read yet. */
-export type SettingsSwitches = { reachOuts: boolean | null; cycles: boolean | null };
+export type SettingsSwitches = { reachOuts: boolean | null; moments: boolean | null; cycles: boolean | null };
 
 /** The switches `account` says; all null before it is read. */
 export function settingsSwitches(account: Account | null): SettingsSwitches {
-  return { reachOuts: account?.reach_outs ?? null, cycles: account?.cycles ?? null };
+  return {
+    reachOuts: account?.reach_outs ?? null,
+    moments: account?.moments ?? null,
+    cycles: account?.cycles ?? null,
+  };
 }
 
 /** The categories there only where the deployer has them on, each with its switch, whose value is
  * also its summary. */
 const SWITCHED = [
   ["reach-outs", "reachOuts"],
+  ["moments", "moments"],
   ["cycles", "cycles"],
 ] as const satisfies readonly (readonly [SettingsCategory, keyof SettingsSwitches])[];
 

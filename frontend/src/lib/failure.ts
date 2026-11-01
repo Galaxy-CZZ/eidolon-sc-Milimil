@@ -8,7 +8,8 @@ export type Failure = { message: string; signedOut: boolean; toOwnKeys?: boolean
 
 export function toFailure(e: unknown): Failure {
   const failure: Failure = { message: (e as Error).message, signedOut: e instanceof ApiError && e.unauthorized };
-  // Refused for the limit: own keys get around it (GLOSSARY.md「免限额密钥」).
-  if (e instanceof ApiError && e.overLimit) failure.toOwnKeys = true;
+  // Refused for the limit: own keys get around it (GLOSSARY.md「免限额密钥」). Failed on the user's own
+  // key: theirs to fix.
+  if (e instanceof ApiError && (e.overLimit || e.code === "own_key")) failure.toOwnKeys = true;
   return failure;
 }

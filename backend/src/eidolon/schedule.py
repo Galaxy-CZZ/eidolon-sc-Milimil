@@ -52,6 +52,7 @@ from eidolon.data_access import Database
 from eidolon.job_list import SLOTS, WORK, Category, ListedJob, Slot
 from eidolon.producer import effective_timezone
 from eidolon.store import read_profile
+from eidolon.today import tokyo_date
 from eidolon.world import World
 
 _SCHEMA = """
@@ -255,6 +256,17 @@ class HerSchedule:
 
 
 @dataclass(frozen=True)
+class DayJob:
+    """One of her jobs the producer saved, as of the day in Tokyo it is done on: the job,
+    when it is done (`done_at`), and the kinds of place it takes her to, as the job list has
+    them now (`ListedJob.places`)."""
+
+    job: Job
+    done_at: datetime
+    places: tuple[str, ...] | None
+
+
+@dataclass(frozen=True)
 class Saved:
     """What saving placed, and what it handed back, each with why."""
 
@@ -359,8 +371,15 @@ def is_done(
     """Whether a job `length` slots long, starting at the slot of `week`'s day, is done: its
     last slot past, it being `local` where the producer is, in their `this_week`. The one
     place a job is told done: for raising her affinity, telling her her jobs, and her coming
-    to the bar after one."""
+    to the bar after one; `done_at` tells when, the same."""
     return time_of(local, this_week, week, day, slot + length - 1) == "past"
+
+
+def done_at(week: date, day: int, slot: int, length: int, timezone: str) -> datetime:
+    """When a job `length` slots long, starting at the slot of `week`'s day, is done: as its
+    last slot ends, where the producer is (`timezone`)."""
+    start = datetime.combine(week + timedelta(days=day), time(), ZoneInfo(timezone))
+    return start + timedelta(hours=SLOT_HOURS * (slot + length + 1))
 
 
 def why_not(
@@ -457,6 +476,7 @@ class Schedules:
         self._is_on = is_on
         self._idols = list(idols)
         self._job_list = list(job_list)
+        self._places = {j.id: j.places for j in job_list}
         self._affinities = affinities
         db.prepare(_open)
 
@@ -479,6 +499,38 @@ class Schedules:
             lambda db, now, counting, writing:
             self._hers(db, user_id, character_id, device_timezone, now, counting, writing)
         )
+
+    async def done_on(self, user_id: str, day: date) -> dict[str, list[DayJob]]:
+        """Each character's jobs the user saved that are done on `day` in Tokyo, where they
+        are as their profile has it, done already or not yet, in the order they are done;
+        none while schedules are off. Reads only: counts none."""
+        if not self._is_on():
+            return {}
+        return await self._db.read(self._done_on, user_id, day)
+
+    def _done_on(
+        self, db: sqlite3.Connection, user_id: str, day: date
+    ) -> dict[str, list[DayJob]]:
+        timezone = effective_timezone(read_profile(db, user_id), None)
+        # Their weeks are where they are: any of these may have a job done on `day` in Tokyo.
+        weeks = sorted({monday_of(day + timedelta(days=d)).isoformat() for d in (-2, -1, 0, 1)})
+        rows = db.execute(
+            "SELECT j.id, j.character_id, j.name, j.note, j.category, j.length, j.slots,"
+            " j.listed_id, p.week, p.day, p.slot FROM schedule_placements p"
+            " JOIN weekly_jobs j ON j.id = p.job_id"
+            f" WHERE p.user_id = ? AND p.week IN ({', '.join('?' * len(weeks))})",
+            (user_id, *weeks),
+        ).fetchall()
+        done: list[DayJob] = []
+        for *fields, listed_id, week, weekday, slot in rows:
+            job = _job(*fields)
+            at = done_at(date.fromisoformat(week), weekday, slot, job.length, timezone)
+            if tokyo_date(at) == day:
+                done.append(DayJob(job, at, self._places.get(listed_id)))
+        by_character: dict[str, list[DayJob]] = {}
+        for each in sorted(done, key=lambda d: d.done_at):
+            by_character.setdefault(each.job.character_id, []).append(each)
+        return by_character
 
     async def _read_first(
         self, body: Callable[[sqlite3.Connection, datetime, bool, bool], T | None]

@@ -3,11 +3,13 @@ import { describe, expect, it } from "vitest";
 import {
   currentNavItem,
   departure,
+  isConversationPage,
   isGiftsSubpageInView,
   isInShell,
   isTyping,
   navDestination,
   navDots,
+  navItems,
   showsNav,
   showsShellCallBar,
 } from "@/lib/navShell";
@@ -17,6 +19,7 @@ describe("在不在导航外壳里", () => {
     "/conversations",
     "/conversation/mano",
     "/conversation/mano?x=1",
+    "/moments",
     "/settings",
     "/settings?tab=own-keys",
     "/settings/own-keys",
@@ -40,6 +43,8 @@ describe("在不在导航外壳里", () => {
     "/conversation",
     "/conversations-old",
     "/settingsx",
+    "/moments/1",
+    "/momentsx",
     "/gifts",
     "/gifts?to=mano",
     "/gifts/cake",
@@ -52,6 +57,13 @@ describe("在不在导航外壳里", () => {
 
   it("别的网站上的网址不算，哪怕路径一样", () => {
     expect(isInShell("https://github.com/conversations")).toBe(false);
+  });
+});
+
+describe("是不是她的对话页（信不在上面弹）", () => {
+  it("她的对话页是，别的页面不是", () => {
+    expect(isConversationPage("/conversation/mano")).toBe(true);
+    expect(isConversationPage("/conversations")).toBe(false);
   });
 });
 
@@ -69,6 +81,7 @@ describe("外壳顶上的通话条", () => {
     expect(showsShellCallBar("/settings?tab=call", "mano")).toBe(true);
     expect(showsShellCallBar("/conversations", "mano")).toBe(true);
     expect(showsShellCallBar("/conversation/hiori", "mano")).toBe(true);
+    expect(showsShellCallBar("/moments", "mano")).toBe(true);
   });
 
   it("她自己的对话页上不出现：那里有页首下面那条", () => {
@@ -94,6 +107,7 @@ describe("去某个网址时通话怎么样", () => {
     expect(departure("/play", "mano")).toBe("keep");
     expect(departure("/play/gifts?to=hiori", "mano")).toBe("keep");
     expect(departure("/play/achievements", "mano")).toBe("keep");
+    expect(departure("/moments", "mano")).toBe("keep");
   });
 
   it("通话中回她自己的对话页，通话留着", () => {
@@ -113,6 +127,7 @@ describe("去某个网址时通话怎么样", () => {
 describe("导航栏和 dock 的当前项", () => {
   it.each([
     ["/conversation/mano", "conversations"],
+    ["/moments", "moments"],
     ["/settings", "settings"],
     ["/settings/own-keys", "settings"],
     ["/play", "play"],
@@ -124,6 +139,22 @@ describe("导航栏和 dock 的当前项", () => {
 
   it("外壳外面没有当前项", () => {
     expect(currentNavItem("/admin")).toBeNull();
+  });
+});
+
+describe("导航栏和 dock 上有哪几项", () => {
+  it("朋友圈开着时四项：对话、朋友圈、玩法、设置", () => {
+    expect(navItems(true)).toEqual(["conversations", "moments", "play", "settings"]);
+  });
+
+  it("账号里朋友圈为空（部署者关着）、用户关了或账号还没读到时没有「朋友圈」", () => {
+    for (const moments of [null, false, undefined])
+      expect(navItems(moments), String(moments)).toEqual(["conversations", "play", "settings"]);
+  });
+
+  it("「朋友圈」去 /moments", () => {
+    expect(navDestination("moments", "/conversations")).toBe("/moments");
+    expect(navDestination("moments", "/moments")).toBeNull();
   });
 });
 
@@ -149,24 +180,43 @@ describe("礼物子页在不在眼前（到账当场记成看过）", () => {
 });
 
 describe("导航栏、dock 上的点", () => {
-  const both = { conversations: true, rewards: true };
+  const both = { conversations: true, rewards: true, moments: false };
 
   it("「对话」有没看过的搭话、「玩法」有新到的抽奖次数时各亮各的", () => {
-    expect(navDots("settings", both)).toEqual({ conversations: true, play: true, settings: false });
-    expect(navDots("settings", { conversations: false, rewards: true })).toEqual({
+    expect(navDots("settings", both)).toEqual({ conversations: true, moments: false, play: true, settings: false });
+    expect(navDots("settings", { conversations: false, rewards: true, moments: false })).toEqual({
       conversations: false,
+      moments: false,
       play: true,
       settings: false,
     });
-    expect(navDots("settings", { conversations: true, rewards: false }).play).toBe(false);
+    expect(navDots("settings", { conversations: true, rewards: false, moments: false }).play).toBe(false);
   });
 
   it("当前项是「玩法」时「玩法」不亮，别的照旧", () => {
-    expect(navDots("play", both)).toEqual({ conversations: true, play: false, settings: false });
+    expect(navDots("play", both)).toEqual({ conversations: true, moments: false, play: false, settings: false });
   });
 
   it("在外壳外面（没有当前项）时照常", () => {
     expect(navDots(null, both).play).toBe(true);
+  });
+
+  it("有新的动态或她的回复时「朋友圈」上有点，别的照旧", () => {
+    expect(navDots("conversations", { conversations: false, rewards: false, moments: true })).toEqual({
+      conversations: false,
+      moments: true,
+      play: false,
+      settings: false,
+    });
+  });
+
+  it("在朋友圈页上「朋友圈」不亮，别的照旧", () => {
+    expect(navDots("moments", { ...both, moments: true })).toEqual({
+      conversations: true,
+      moments: false,
+      play: true,
+      settings: false,
+    });
   });
 });
 

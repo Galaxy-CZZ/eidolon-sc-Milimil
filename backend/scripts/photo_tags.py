@@ -180,7 +180,7 @@ BLOCKED: dict[str, dict[str, list[str]]] = {
             "1boy", "2boys", "3boys", "4boys", "5boys", "6+boys", "multiple boys", "2girls",
             "3girls", "4girls", "5girls", "6+girls", "multiple girls", "1other", "2others",
             "multiple others", "hetero", "yuri", "yaoi", "couple", "husband and wife",
-            "wife and wife", "faceless male", "male focus",
+            "wife and wife", "faceless male", "male focus", "viewer holding phone", "solo focus",
         ],
         "words": ["boys", "girls", "hetero"],
     },
@@ -258,8 +258,12 @@ REWRITES = {
     "her room": "bedroom", "school classroom": "classroom", "city street": "street",
     "the beach": "beach", "swimming pool": "pool", "backstage area": "backstage",
     "concert stage": "stage", "on stage": "stage", "office room": "office",
+    # 配图（调研 6.4）。写成空串的是剥掉：不是 tag，也没有对应的 tag。
+    "candid": "", "candid photo": "", "candid shot": "", "group selfie": "selfie",
+    "food on table": "on table", "no human": "no humans", "landscape view": "landscape",
+    "shoulder to shoulder": "side-by-side",
 }
-"""她可能写的非 tag 写法 → 模型认识的 tag。目标查不到、或原写法本身就是 tag 的，生成时丢掉并提示。"""
+"""她可能写的非 tag 写法 → 模型认识的 tag，空串是剥掉。目标查不到、或原写法本身就是 tag 的，生成时丢掉并提示。"""
 
 VOCABULARY = [
     # 地点
@@ -305,6 +309,19 @@ VOCABULARY = [
     "tears", "surprised", "embarrassed", "shy", "pout", "angry", "annoyed", "sleepy",
     "nervous", "confused", "serious", "expressionless", "determined", "excited",
     "selfie", "taking picture", "mirror", "phone", "smartphone", "camera",
+    # 配图（调研 6.4）：无人构图的地点和景物
+    "no humans", "scenery", "landscape", "sky focus", "cloud focus", "horizon", "tree",
+    "building", "reflection", "cityscape", "ocean", "city lights",
+    # 食物和物品
+    "food focus", "plate", "table", "on table", "bowl", "mug", "coffee mug", "cake", "dessert",
+    "parfait", "ramen", "bento", "vase", "cat", "animal focus", "food", "coffee", "drink",
+    "flower", "object focus",
+    # 抓拍
+    "profile", "depth of field", "blurry background", "blurry foreground", "wide shot",
+    "looking at another", "eye contact", "looking afar",
+    # 合照（只在她的动作栏里用）
+    "side-by-side", "heads together", "cheek-to-cheek", "arm around shoulder",
+    "hand on another's shoulder", "arm hug", "group picture",
 ]
 """白名单的查询：把这些查一遍，建议里出现过的 tag 都算已知。"""
 
@@ -391,7 +408,9 @@ def generate(vocabulary: Vocabulary) -> dict:
     for written, tag in REWRITES.items():
         if written == tag:
             continue
-        if vocabulary.known(written):
+        if not tag:  # 剥掉
+            rewrites[written] = tag
+        elif vocabulary.known(written):
             print(f"改写表：{written!r} 本身就是 tag，不改写")
         elif not vocabulary.known(tag):
             print(f"改写表：{tag!r} 不是已知 tag，丢掉 {written!r}")

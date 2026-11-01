@@ -250,9 +250,13 @@ export type Dashboard = {
   affinity: AffinitySection | null;
   /** Her reach-outs (GLOSSARY「搭话」); null where they are off and none were made in the range. */
   reach_outs: ReachOutsSection | null;
+  /** Her letters (GLOSSARY「信」); null where they are off and none were recorded in the range. */
+  letters: LettersSection | null;
   /** Visits to the bar (GLOSSARY「光顾」); null where the bar is closed and none were made in the
    * range. */
   bar: BarSection | null;
+  /** Moments (GLOSSARY「朋友圈」); null where they are off and none were recorded in the range. */
+  moments: MomentsSection | null;
   /** The achievements' stages unlocked and what they gave (GLOSSARY「成就」); null where affinity is
    * off and none were unlocked in the range. */
   achievements: AchievementsSection | null;
@@ -285,6 +289,20 @@ export function reachOutTiles(section: ReachOutsSection | null): { id: string; l
   ];
 }
 
+/** The dashboard's「信」section: how many letters were written, and how many times writing one
+ * failed. */
+export type LettersSection = { succeeded: number; failed: number };
+
+/** The section's tiles, as the page shows them; none where it is empty. */
+export function letterTiles(section: LettersSection | null): { id: string; label: string; value: string }[] {
+  if (section === null) return [];
+  const words = copy.admin.dashboard.letters.tiles;
+  return [
+    { id: "succeeded", label: words.succeeded, value: formatCount(section.succeeded) },
+    { id: "failed", label: words.failed, value: formatCount(section.failed) },
+  ];
+}
+
 /** The dashboard's「酒吧」section: how many visits were begun (not those rejected over the
  * limit), how many were done, and how many failed. */
 export type BarSection = { visits: number; done: number; failed: number };
@@ -297,6 +315,31 @@ export function barTiles(section: BarSection | null): { id: string; label: strin
     { id: "visits", label: words.visits, value: formatCount(section.visits) },
     { id: "done", label: words.done, value: formatCount(section.done) },
     { id: "failed", label: words.failed, value: formatCount(section.failed) },
+  ];
+}
+
+/** The dashboard's「朋友圈」section: how many moments were posted and failed, how many of the
+ * producer's comments she replied to and failed to, and, whatever the range, the share of the
+ * moments shown within the last 30 days he likes or has commented on (null of none). */
+export type MomentsSection = {
+  posted: number;
+  posts_failed: number;
+  replied: number;
+  replies_failed: number;
+  liked_or_commented_share: number | null;
+};
+
+/** The section's tiles, as the page shows them; none where it is empty. */
+export function momentTiles(section: MomentsSection | null): { id: string; label: string; value: string }[] {
+  if (section === null) return [];
+  const words = copy.admin.dashboard.moments.tiles;
+  const share = section.liked_or_commented_share;
+  return [
+    { id: "posted", label: words.posted, value: formatCount(section.posted) },
+    { id: "posts_failed", label: words.posts_failed, value: formatCount(section.posts_failed) },
+    { id: "replied", label: words.replied, value: formatCount(section.replied) },
+    { id: "replies_failed", label: words.replies_failed, value: formatCount(section.replies_failed) },
+    { id: "liked_or_commented", label: words.liked_or_commented, value: share === null ? NONE : formatPercent(share) },
   ];
 }
 

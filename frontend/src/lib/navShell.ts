@@ -1,5 +1,5 @@
 // Where the navigation shell's rules send the call (.scratch/app-navigation spec「外壳持有的东西」
-// 「通话条」, ADR-0018): the conversations, the play page and the settings share one shell, and
+// 「通话条」, ADR-0018): the conversations, the moments, the play page and the settings share one shell, and
 // the call belongs to it, not to her conversation page. Given a URL and whom the call under way
 // is with (or no one), these say whether that URL is in the shell, whether the call bar shows
 // across its top, and whether going there keeps the call, asks first and then hangs up, or just
@@ -27,13 +27,18 @@ function conversationOf(path: string): string | null {
   return match ? decodeURIComponent(match[1]) : null;
 }
 
+/** Whether `href` is a character's conversation page (her letter does not pop up over it, lib/letter). */
+export function isConversationPage(href: string): boolean {
+  return conversationOf(pathOf(href).path) !== null;
+}
+
 /** The play page: its first level and each of its subpages. */
 function isPlay(path: string): boolean {
   return path === PLAY_ROOT || playSubpage(path) !== null;
 }
 
-/** The conversations (list and each character's page), the play page (the first level and each
- * subpage) and the settings (memories among them) are in the shell; the admin console, `/about`, the privacy policy, the
+/** The conversations (list and each character's page), the moments, the play page (the first level
+ * and each subpage) and the settings (memories among them) are in the shell; the admin console, `/about`, the privacy policy, the
  * terms, sign-in and consent are out of it, and so is anything on another site. */
 export function isInShell(href: string): boolean {
   const { path, local } = pathOf(href);
@@ -41,6 +46,7 @@ export function isInShell(href: string): boolean {
   return (
     path === "/conversations" ||
     conversationOf(path) !== null ||
+    path === MOMENTS ||
     isPlay(path) ||
     path === "/settings" ||
     path.startsWith("/settings/")
@@ -72,14 +78,24 @@ export function departure(href: string, callee: string | null): Departure {
   return other !== null && other !== callee ? "ask" : "keep";
 }
 
+/** The moments (GLOSSARY.md「朋友圈」): a first level of its own, with no second. */
+const MOMENTS = "/moments";
+
 /** The items of the rail and the dock, top to bottom (left to right on the dock). */
-export const NAV_ITEMS = ["conversations", "play", "settings"] as const;
+export const NAV_ITEMS = ["conversations", "moments", "play", "settings"] as const;
 export type NavItem = (typeof NAV_ITEMS)[number];
+
+/** The items drawn for a user: the moments only where the account has them (`Account.moments`; null
+ * while the deployer has them off, or the account is not read yet). */
+export function navItems(moments: boolean | null | undefined): NavItem[] {
+  return NAV_ITEMS.filter((item) => item !== "moments" || moments === true);
+}
 
 /** Each item's first level; her conversation page, a play subpage and a settings category below it
  * are its second. */
 export const FIRST_LEVEL: Record<NavItem, string> = {
   conversations: "/conversations",
+  moments: MOMENTS,
   play: PLAY_ROOT,
   settings: "/settings",
 };
@@ -89,6 +105,7 @@ export function currentNavItem(href: string): NavItem | null {
   const { path } = pathOf(href);
   if (!isInShell(href)) return null;
   if (isPlay(path)) return "play";
+  if (path === MOMENTS) return "moments";
   return path === "/settings" || path.startsWith("/settings/") ? "settings" : "conversations";
 }
 
@@ -100,13 +117,19 @@ export function isGiftsSubpageInView(href: string, isCallLayerOpen: boolean): bo
 }
 
 /** The dots on the rail and the dock: 「对话」 when a row of the list has a reach-out not yet seen,
- * 「玩法」 when draw chances have come that are not yet seen, except while the current item is the
- * play page itself (its cards say which one). */
+ * 「朋友圈」 when a moment or her reply has shown since the moments were last opened, except on
+ * the moments page itself, 「玩法」 when draw chances have come that are not yet seen, except while
+ * the current item is the play page itself (its cards say which one). */
 export function navDots(
   current: NavItem | null,
-  { conversations, rewards }: { conversations: boolean; rewards: boolean },
+  { conversations, rewards, moments }: { conversations: boolean; rewards: boolean; moments: boolean },
 ): Record<NavItem, boolean> {
-  return { conversations, play: rewards && current !== "play", settings: false };
+  return {
+    conversations,
+    moments: moments && current !== "moments",
+    play: rewards && current !== "play",
+    settings: false,
+  };
 }
 
 /** Where clicking `item` from `href` goes: another item goes to its first level, and so does

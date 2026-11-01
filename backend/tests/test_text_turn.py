@@ -24,13 +24,17 @@ async def send_turn(
     own_llm: dict | None = None,
     *,
     own_keys: dict | None = None,
+    read_aloud_model: str | None = None,
 ) -> list[dict]:
     """Send a text turn, bringing the user's `own_keys` if given, or else their `own_llm`
-    alone (as `own_keys`, which turns and calls bring alike), and collect the server-sent
-    events it streams back."""
+    alone (as `own_keys`, which turns and calls bring alike), and the model of their own key
+    for speech synthesis if given (`read_aloud_model`), and collect the server-sent events it
+    streams back."""
     events: list[dict] = []
     own_keys = own_keys or ({"llm": own_llm} if own_llm else None)
-    body = {"text": text} | ({"own_keys": own_keys} if own_keys else {})
+    body = {"text": text} | ({"own_keys": own_keys} if own_keys else {}) | (
+        {"read_aloud_model": read_aloud_model} if read_aloud_model else {}
+    )
     async with client.stream(
         "POST", f"/api/conversations/{conversation_id}/turns", json=body
     ) as res:

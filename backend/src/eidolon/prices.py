@@ -138,6 +138,11 @@ PRESETS: dict[PriceKey, Price] = {
     ("image.novelai.net", "nai-diffusion-5-curated", "images"): Price(
         0.036, None, "USD", date(2026, 10, 17)
     ),
+    # GPT Image 2, per picture at medium quality, landscape or portrait: OpenAI's image
+    # generation guide prices 1536×1024 and 1024×1536 so, and 1216×832 not apart. The prompt's
+    # text tokens ($5 a million) are left out, a few hundred a picture. Other qualities and
+    # relays have no preset.
+    ("api.openai.com", "gpt-image-2", "images"): Price(0.041, None, "USD", date(2026, 11, 1)),
 }
 """The prices of the models supported, as their providers' price pages had them on
 `GATHERED` (`.scratch/admin-console/research.md`; the cache prices

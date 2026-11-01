@@ -1,10 +1,10 @@
 """A photo is all ages whatever she writes in her tag (ADR-0023): what crosses the line is
 stripped from it, tag by tag, and the photo generated from the rest, a field stripped
 bare taking its default; swimsuits, pajamas and lying on a bed are not crossing it. Her
-looks, an art style or an artist, and anyone else in the picture are stripped too. What
-she writes the model does not know as a tag is put as the model knows it, by the local
-tag table, or kept as it is. The dashboard says how often, and for which part of the
-line, tags were stripped from her photos; never which tags.
+looks, an art style or an artist, and anyone else in the picture (holding hands among it)
+are stripped too. What she writes the model does not know as a tag is put as the model
+knows it, by the local tag table, or kept as it is. The dashboard says how often, and for
+which part of the line, tags were stripped from her photos; never which tags.
 
 Driven through the backend's external API, the image service faked at its transport,
 where every request it is sent is seen."""
@@ -29,7 +29,7 @@ shot: other
 framing: full body
 place: Bathroom, onsen, hot spring, rotenburo, beach, poolside, sparkly sand
 outfit: micro_bikini, {{see-through}}, see_through, nude, bathing suit, one-piece swimsuit, school swimsuit, Lingerie, pajamas
-action: lying, on bed, ahegao, spread legs, from below, blonde hair, twintails, large breasts, artist:someone, 1boy, v sign, looking at camera, rating:explicit
+action: lying, on bed, ahegao, spread legs, from below, blonde hair, twintails, large breasts, artist:someone, 1boy, holding hands, v sign, looking at camera, rating:explicit
 """
 ALL_OF_IT = """
 shot: other
@@ -85,7 +85,7 @@ async def test_what_crosses_the_line_is_stripped_and_counted_never_named(
     assert image_row["stripped_photos"] == 2
     assert image_row["stripped"] == {
         "nudity": 2, "underwear": 6, "exposure": 2, "bathing": 5, "pose": 2,
-        "expression": 2, "appearance": 3, "style": 1, "people": 1,
+        "expression": 2, "appearance": 3, "style": 1, "people": 2,
     }
     for written in ("bathroom", "micro", "lingerie", "ahegao", "blonde", "someone", "bunny", "1boy"):
         assert written not in str(board), written

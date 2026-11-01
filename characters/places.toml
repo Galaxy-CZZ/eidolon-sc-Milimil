@@ -1,0 +1,4212 @@
+# 地点池（GLOSSARY.md「地点」）。和工作清单一样由维护者在这里维护，后台和 .env 都不能改；
+# 启动时读入、校验，写错了后端起不来。运行时不查任何地图服务。
+#
+# Contains data © OpenStreetMap contributors, ODbL
+#
+# 每个地点一个 [[places]] 段：
+#   id        规范标识（小写字母、数字、- 和 _）
+#   name      日文原名，动态旁边显示的就是它，和地图、招牌一致，片假名店名照写
+#   area      区市町村，消歧、给她参考用，不显示；东京都以外的带县名，只能是神奈川県、千葉県、埼玉県
+#   lat, lon  坐标，取自来源（OSM、Wikidata、官方页面），不估
+#   category  类别：cafe（咖啡馆·甜品·餐厅）、park（公园·河边）、shrine（神社·寺）、
+#             shopping-street（商店街）、fashion-street（杂货·服装街区）、books（书店·图书馆）、
+#             mall（商场·车站大楼，含电影院）、seaside（海边·湾岸）、amusement（水族馆·动物园·游乐园）、
+#             museum（美术馆·博物馆·天象仪）、night-view（展望台·夜景）、bath（温泉·钱汤）、
+#             seasonal（季节名所）、venue（演出场馆）；
+#             cafe、books、mall、museum、bath、venue 算室内，下雨下雪只挑这几类
+#   note      一句中文，告诉她这是什么地方，她写配图时看它自己写景物
+#   checked   核对日期，如 2026-10-31
+#   idols     有关的偶像（可选，角色标识的列表）：只给圣地和角色资料里写明的地方
+#   source    出处（可选，一行）：圣地写卡面名或［背景］名加考据链接；有 source 的就是圣地
+#   seasons   只在哪些季节挑（可选，只给明显分季节的）：spring（3–5 月）、summer（6–8 月）、
+#             autumn（9–11 月）、winter（12–2 月）的列表，按东京的月份
+#   slots     只在哪些时段挑（可选，比如夜景只排晚上）：morning（上午）、afternoon（下午）、
+#             evening（晚上）的列表，按东京时间看发的那一刻；写了的深夜不挑
+#   venues    演出场馆在 world.json 里演出那天的场馆名（可选，只给 venue）：和 name 不一样、
+#             或者有几种写法时写全；不写就是 name。只在她往年今天有演出时挑
+#
+# 便利店、家庭餐厅、学校、私宅、夜生活街区不收。
+
+# 演出场馆（world.json 里在东京都和近郊的 live 场馆）
+
+[[places]]
+id = "k-arena-yokohama"
+name = "Kアリーナ横浜"
+area = "神奈川県横浜市西区"
+lat = 35.46458
+lon = 139.63059
+category = "venue"
+note = "横滨港未来21旁边的大型音乐专用场馆，扇形的看台面朝舞台。"
+checked = 2026-10-31
+
+[[places]]
+id = "pia-arena-mm"
+name = "ぴあアリーナMM"
+area = "神奈川県横浜市西区"
+lat = 35.45572
+lon = 139.62853
+category = "venue"
+note = "横滨港未来21的一万人规模演唱会场馆，出站走几分钟就到海边。"
+checked = 2026-10-31
+
+[[places]]
+id = "pacifico-yokohama"
+name = "パシフィコ横浜 国立大ホール"
+area = "神奈川県横浜市西区"
+lat = 35.45833
+lon = 139.63639
+category = "venue"
+note = "横滨港边会展中心里的大礼堂，门外就是临港公园和大海。"
+checked = 2026-10-31
+venues = ["パシフィコ横浜 国立大ホール", "パシフィコ横浜国立大ホール"]
+
+[[places]]
+id = "yokohama-buntai"
+name = "横浜BUNTAI"
+area = "神奈川県横浜市中区"
+lat = 35.44105
+lon = 139.63654
+category = "venue"
+note = "关内站旁边的体育馆兼演出场馆，附近是横滨中华街和山下公园。"
+checked = 2026-10-31
+
+[[places]]
+id = "yokohama-arena"
+name = "横浜アリーナ"
+area = "神奈川県横浜市港北区"
+lat = 35.51239
+lon = 139.62006
+category = "venue"
+note = "新横滨站附近的大型室内场馆，常办演唱会。"
+checked = 2026-10-31
+
+[[places]]
+id = "zozo-marine-stadium"
+name = "ZOZOマリンスタジアム"
+area = "千葉県千葉市美浜区"
+lat = 35.64524
+lon = 140.03092
+category = "venue"
+note = "幕张海边的露天棒球场，海风很大，夏天也办音乐节。"
+checked = 2026-10-31
+
+[[places]]
+id = "makuhari-event-hall"
+name = "幕張イベントホール"
+area = "千葉県千葉市美浜区"
+lat = 35.64821
+lon = 140.03469
+category = "venue"
+note = "幕张展览馆旁边的室内场馆，常办演唱会。"
+checked = 2026-10-31
+
+[[places]]
+id = "makuhari-messe"
+name = "幕張メッセ 国際展示場"
+area = "千葉県千葉市美浜区"
+lat = 35.64833
+lon = 140.03472
+category = "venue"
+note = "幕张新都心的大型会展中心，展厅连成一排，办大型展会和演出。"
+checked = 2026-10-31
+venues = ["幕張メッセ 国際展示場", "幕張メッセ国際展示場1~3ホール"]
+
+[[places]]
+id = "maihama-amphitheater"
+name = "舞浜アンフィシアター"
+area = "千葉県浦安市"
+lat = 35.63258
+lon = 139.88922
+category = "venue"
+note = "舞滨站旁边的半圆形剧场，就在东京迪士尼度假区门口。"
+checked = 2026-10-31
+
+[[places]]
+id = "keio-arena-tokyo"
+name = "京王アリーナTOKYO"
+area = "調布市"
+lat = 35.6656
+lon = 139.5246
+category = "venue"
+note = "调布味之素体育场旁边的室内体育馆，原名武藏野之森综合体育广场。"
+checked = 2026-10-31
+venues = ["京王アリーナTOKYO", "武蔵野の森総合スポーツプラザ メインアリーナ"]
+
+[[places]]
+id = "tachikawa-stage-garden"
+name = "立川ステージガーデン"
+area = "立川市"
+lat = 35.70486
+lon = 139.41188
+category = "venue"
+note = "立川站北边新街区里的剧场，旁边是昭和纪念公园。"
+checked = 2026-10-31
+venues = ["TACHIKAWA STAGE GARDEN(立川ステージガーデン)"]
+
+[[places]]
+id = "ryogoku-kokugikan"
+name = "両国国技館"
+area = "墨田区"
+lat = 35.69694
+lon = 139.79333
+category = "venue"
+note = "两国的相扑馆，相扑比赛之外也办演出，附近有很多相扑火锅店。"
+checked = 2026-10-31
+
+[[places]]
+id = "yoyogi-national-gymnasium"
+name = "国立代々木競技場 第一体育館"
+area = "渋谷区"
+lat = 35.6675
+lon = 139.70028
+category = "venue"
+note = "代代木公园旁边吊索屋顶的体育馆，从原宿站走几分钟。"
+checked = 2026-10-31
+
+[[places]]
+id = "nippon-budokan"
+name = "日本武道館"
+area = "千代田区"
+lat = 35.69333
+lon = 139.75
+category = "venue"
+note = "北之丸公园里八角形屋顶的武道馆，旁边就是皇居的护城河。"
+checked = 2026-10-31
+
+[[places]]
+id = "tokyo-garden-theater"
+name = "東京ガーデンシアター"
+area = "江東区"
+lat = 35.63822
+lon = 139.79214
+category = "venue"
+note = "有明的剧场型室内场馆，周围是新建的商场和公园。"
+checked = 2026-10-31
+
+[[places]]
+id = "tokyo-dome"
+name = "東京ドーム"
+area = "文京区"
+lat = 35.70556
+lon = 139.75194
+category = "venue"
+note = "水道桥的巨蛋球场，旁边是东京巨蛋城的游乐园和商场。"
+checked = 2026-10-31
+
+# 圣地（卡面、背景的取景地，有 source 的就是圣地）
+
+[[places]]
+id = "seiseki-iroha-sakura-park"
+name = "いろは坂桜公園"
+area = "多摩市"
+lat = 35.6457
+lon = 139.44475
+category = "park"
+note = "多摩市桜ヶ丘住宅区いろは坂急弯坡道顶上的小公园，春天有樱花，能俯瞰聖蹟桜ヶ丘一带。"
+checked = 2026-10-31
+idols = ["juri", "kiriko", "amana"]
+source = "【オフデーゲーム】西城樹里、【君・空・我・空】幽谷霧子、［背景］公園；公园旁的坡道：【お散歩サンライト】大崎甘奈、［背景］坂道；https://note.com/suzuya_blowgun/n/n87ab6e463404；https://aokamilong.hatenablog.com/entry/2020/06/07/190000"
+seasons = ["spring"]
+
+[[places]]
+id = "keio-seiseki-sakuragaoka-sc"
+name = "京王聖蹟桜ヶ丘ショッピングセンター"
+area = "多摩市"
+lat = 35.65083
+lon = 139.44686
+category = "mall"
+note = "京王线聖蹟桜ヶ丘站直连的车站商场，正对站前十字路口和西口广场，有超市、杂货和书店。"
+checked = 2026-10-31
+idols = ["meguru", "mano", "asahi", "chiyuki"]
+source = "【金色の元気いっぱいガール】八宮めぐる（西口広場）、【駅線上の日常】櫻木真乃（西口改札）、【さかさま世界】芹沢あさひ（駅前交差点）、［背景］街中、【マイフェイバリット】桑山千雪 コミュ背景（駅前）；https://note.com/suzuya_blowgun/n/n87ab6e463404；https://aokamilong.hatenablog.com/entry/2019/07/28/150000"
+
+[[places]]
+id = "kotta-river-cherry-trees"
+name = "乞田川"
+area = "多摩市"
+lat = 35.64702
+lon = 139.45414
+category = "seasonal"
+note = "流经多摩市的小河，两岸约 3 公里种了 500 多棵樱花，春天沿河是一条花廊。"
+checked = 2026-10-31
+idols = ["meguru", "amana"]
+source = "【友情の花吹雪】八宮めぐる、【約束ペタル】大崎甘奈（南田橋付近）；https://note.com/suzuya_blowgun/n/n87ab6e463404；https://aokamilong.hatenablog.com/entry/2021/03/28/220000"
+seasons = ["spring"]
+
+[[places]]
+id = "sakuragaoka-park-yuhi-no-oka"
+name = "都立桜ヶ丘公園"
+area = "多摩市"
+lat = 35.64188
+lon = 139.46089
+category = "park"
+note = "保留多摩丘陵杂木林的大型都立公园，高处的「ゆうひの丘」能俯瞰多摩的街景，看夕阳和夜景都好。"
+checked = 2026-10-31
+idols = ["juri"]
+source = "【意地っ張りサンセット】西城樹里、［背景］高台；https://note.com/suzuya_blowgun/n/n87ab6e463404；https://baki1771104.com/archives/6851；https://laquari.hatenablog.jp/entry/2020/08/12/105328"
+
+[[places]]
+id = "saifu-ryokuchi-tamagawa"
+name = "西府緑地"
+area = "府中市"
+lat = 35.66087
+lon = 139.44222
+category = "park"
+note = "府中四谷橋桥头、多摩川府中一侧的河岸绿地，红色步道上能看到河面、大桥和远处的多摩丘陵。"
+checked = 2026-10-31
+idols = ["meguru", "mano"]
+source = "［背景］河川敷（北東側候補）、【アイムカミングスーン】八宮めぐる（府中四谷橋）、【つむぎ、まばゆく。星屑たち】櫻木真乃（府中四谷橋下）；https://note.com/suzuya_blowgun/n/n87ab6e463404；https://laquari.hatenablog.jp/entry/2020/08/12/105328；https://soranowoto.cloudfree.jp/html_l1/imas_shiny_colors.html"
+
+[[places]]
+id = "parthenon-odori"
+name = "パルテノン大通り"
+area = "多摩市"
+lat = 35.62308
+lon = 139.42544
+category = "seasonal"
+note = "从多摩センター站笔直通到山丘上パルテノン多摩的步行大道，冬天办「多摩センターイルミネーション」，行道树和大圣诞树都会亮灯。"
+checked = 2026-10-31
+idols = ["mano"]
+source = "【冬街イルミネート】櫻木真乃；https://note.com/suzuya_blowgun/n/n87ab6e463404；https://yakolab.hatenablog.jp/entry/Shiny_Location；https://laquari.hatenablog.jp/entry/2020/08/12/105328"
+seasons = ["winter"]
+slots = ["evening"]
+
+[[places]]
+id = "sakimori-mikaeri-no-toge"
+name = "防人見返りの峠"
+area = "多摩市"
+lat = 35.61669
+lon = 139.45233
+category = "park"
+note = "多摩丘陵山脊步道「多摩よこやまの道」上的一处观景点，能俯瞰多摩新城的团地群和远处山影。"
+checked = 2026-10-31
+idols = ["kaho", "hiori"]
+source = "【ホーカゴ・ア・ゴーゴー！】小宮果穂、【伸ばす手に乗せるのは】風野灯織（SSR 演出里的俯瞰景）；https://note.com/suzuya_blowgun/n/n87ab6e463404；https://yakolab.hatenablog.jp/entry/Shiny_Location"
+
+[[places]]
+id = "yomiuriland-pool-wai"
+name = "プールWAI"
+area = "稲城市"
+lat = 35.62363
+lon = 139.52011
+category = "amusement"
+note = "游乐园よみうりランド里只在夏天开的大型露天泳池，有造浪池和滑梯，夏夜还有夜间泳池。"
+checked = 2026-10-31
+source = "［背景］屋外プール、［背景］ナイトプール；https://note.com/suzuya_blowgun/n/n438b199c9374"
+seasons = ["summer"]
+
+[[places]]
+id = "hikawa-campground"
+name = "氷川キャンプ場"
+area = "西多摩郡奥多摩町"
+lat = 35.80691
+lon = 139.09956
+category = "park"
+note = "JR 奥多摩站步行 5 分钟、多摩川上游河滩上的露营地，溪水清澈、岩石多，可以当天来玩水烧烤。"
+checked = 2026-10-31
+source = "［背景］渓谷（通用剧情背景，正式名不明）；https://note.com/ika_squid/n/n2ebc1819b2b3"
+
+[[places]]
+id = "koenji-azuma-dori"
+name = "あづま通り商店街"
+area = "杉並区"
+lat = 35.70901
+lon = 139.6516
+category = "shopping-street"
+note = "高円寺站北口延伸出去的窄商店街，旧衣店、小酒馆和老式个人小店挤在一起，杂乱又有下町味。"
+checked = 2026-10-31
+source = "［背景］街中C／路地；https://note.com/suzuya_blowgun/n/n67eb12eeb6d9；https://baki1771104.com/archives/6851；https://kimamanidance.hatenablog.com/entry/2021/05/29/180000"
+
+[[places]]
+id = "tokyo-metropolitan-government-building"
+name = "東京都庁舎"
+area = "新宿区"
+lat = 35.68951
+lon = 139.69171
+category = "night-view"
+note = "西新宿的东京都厅第一本厅舍，202 米高的 45 层有免费的南北展望室，能看新宿高楼群，天好时远眺富士山。"
+checked = 2026-10-31
+idols = ["amana"]
+source = "【お散歩サンライト】大崎甘奈（フェス，北展望室所见、左右翻转）；［背景］見上げたビル群（都庁付近）；https://note.com/suzuya_blowgun/n/n67eb12eeb6d9；https://note.com/ika_squid/n/n2ebc1819b2b3"
+
+[[places]]
+id = "book-and-bed-tokyo-shinjuku"
+name = "BOOK AND BED TOKYO SHINJUKU"
+area = "新宿区"
+lat = 35.6953
+lon = 139.7008
+category = "books"
+note = "西武新宿站前大楼 8 层的「能住的书店」，床铺嵌在书架里，白天可以在休息区边喝咖啡边看书。"
+checked = 2026-10-31
+idols = ["sakuya"]
+source = "【それは途中の１ページ】白瀬咲耶、［背景］泊まれる本屋；https://note.com/suzuya_blowgun/n/n67eb12eeb6d9；https://kimamanidance.hatenablog.com/entry/2020/08/15/180000"
+
+[[places]]
+id = "atre-akihabara-1"
+name = "アトレ秋葉原1"
+area = "千代田区"
+lat = 35.69833
+lon = 139.77246
+category = "mall"
+note = "JR 秋叶原站电气街口直连的车站商场，对着ラジオ会館和动漫店环绕的站前广场。"
+checked = 2026-10-31
+idols = ["fuyuko", "tenka"]
+source = "【ザ・冬優子イズム】黛冬優子（ラジ館前、アトレ秋葉原1前）、【四夜一夜物語】大崎甜花（动画部分）、［背景］繁華街；https://note.com/suzuya_blowgun/n/n67eb12eeb6d9；https://kimamanidance.hatenablog.com/entry/2019/11/01/180000；https://baki1771104.com/archives/6851"
+
+[[places]]
+id = "shibuya-center-gai"
+name = "渋谷センター街"
+area = "渋谷区"
+lat = 35.65981
+lon = 139.70016
+category = "shopping-street"
+note = "从涩谷十字路口延伸出去的年轻人商店街，快时尚、游戏厅、餐饮店挤满两侧，入口被大屏幕包围。"
+checked = 2026-10-31
+idols = ["meguru", "kogane"]
+source = "［背景］街中B、【アップ・トゥ・ユー】八宮めぐる（大外ビル屋上ビジョン）、【と～りゃんせ！】月岡恋鐘（スクランブル交差点）；https://note.com/suzuya_blowgun/n/n67eb12eeb6d9；https://kimamanidance.hatenablog.com/entry/2019/10/31/180000；https://baki1771104.com/archives/6851"
+
+[[places]]
+id = "shibuya-spain-zaka"
+name = "スペイン坂"
+area = "渋谷区"
+lat = 35.6615
+lon = 139.69886
+category = "fashion-street"
+note = "涩谷パルコ旁一段很短的石阶坡道，两边是小咖啡馆、杂货和服装店，名字取自南欧风情。"
+checked = 2026-10-31
+idols = ["yuika"]
+source = "【お願い、ただの少女がいい】三峰結華；https://note.com/suzuya_blowgun/n/n67eb12eeb6d9；https://laquari.hatenablog.jp/entry/2020/08/12/105328；https://kimamanidance.hatenablog.com/entry/2019/10/31/180000"
+
+[[places]]
+id = "tower-records-shibuya"
+name = "タワーレコード渋谷店"
+area = "渋谷区"
+lat = 35.66189
+lon = 139.7011
+category = "mall"
+note = "涩谷神南的 9 层大型唱片店，每层按音乐类型分区，还有活动场地和咖啡馆。"
+checked = 2026-10-31
+idols = ["nichika"]
+source = "【♡まっクろはムウサぎ♡】七草にちか、［背景］CDショップ；https://baki1771104.com/archives/6851；https://www.google.com/maps/d/viewer?mid=1f5DNrLap-5JlVzCEoqnv4efmmCMV7WcF"
+
+[[places]]
+id = "omotesando"
+name = "表参道"
+area = "渋谷区"
+lat = 35.66513
+lon = 139.71248
+category = "fashion-street"
+note = "通往明治神宫的榉树大道，两旁是海外品牌旗舰店和买手店，背街小巷里也有很多小店和咖啡馆。"
+checked = 2026-10-31
+idols = ["yuika"]
+source = "［背景］ショッピングストリート、【それなら目をつぶりましょう】三峰結華（表参道拐进去的神宮前5丁目小巷）；https://note.com/suzuya_blowgun/n/n67eb12eeb6d9；https://laquari.hatenablog.jp/entry/2020/08/12/105328；https://kimamanidance.hatenablog.com/entry/2020/11/07/180000"
+
+[[places]]
+id = "omotesando-hills"
+name = "表参道ヒルズ"
+area = "渋谷区"
+lat = 35.66725
+lon = 139.70874
+category = "mall"
+note = "沿表参道横向展开的商业设施，挑空的螺旋坡道两侧是服装和杂货店，一端是复原同润会公寓的同潤館。"
+checked = 2026-10-31
+idols = ["yuika"]
+source = "【ハロー、私の「いつも通り」】三峰結華（同潤館）；https://kimamanidance.hatenablog.com/entry/2020/11/07/180000；https://www.google.com/maps/d/viewer?mid=1f5DNrLap-5JlVzCEoqnv4efmmCMV7WcF"
+
+[[places]]
+id = "meiji-jingu-gaien"
+name = "明治神宮外苑"
+area = "港区"
+lat = 35.6775
+lon = 139.71833
+category = "seasonal"
+note = "以四列银杏并木出名的西式庭园，从青山通り笔直通到聖徳記念絵画館，11 月下旬到 12 月初变成金黄色的隧道。"
+checked = 2026-10-31
+idols = ["madoka"]
+source = "【ギンコ・ビローバ】樋口円香、［背景］いちょう並木；https://note.com/suzuya_blowgun/n/n67eb12eeb6d9；https://note.com/ika_squid/n/n2ebc1819b2b3"
+seasons = ["autumn"]
+
+[[places]]
+id = "ichigaya-fish-center"
+name = "市ヶ谷フィッシュセンター"
+area = "新宿区"
+lat = 35.69194
+lon = 139.73583
+category = "amusement"
+note = "JR 市ケ谷站站台就能看到的外濠钓鱼池，可以钓鲤鱼、金鱼，一边看电车来来往往一边发呆。"
+checked = 2026-10-31
+idols = ["mamimi"]
+source = "【スプリング・フィッシュ】田中摩美々；https://baki1771104.com/archives/6851；https://kimamanidance.hatenablog.com/entry/2020/08/29/180000；https://soranowoto.cloudfree.jp/html_l1/imas_shiny_colors.html"
+
+[[places]]
+id = "yurakucho-marui"
+name = "有楽町マルイ"
+area = "千代田区"
+lat = 35.67425
+lon = 139.76375
+category = "mall"
+note = "JR 有乐町站前有楽町イトシア里的时装百货，一楼入口就是花店，楼上是服装杂货和快闪活动场地。"
+checked = 2026-10-31
+source = "［背景］花屋（青山フラワーマーケット有楽町マルイ店）；https://note.com/suzuya_blowgun/n/n67eb12eeb6d9；https://baki1771104.com/archives/4560；https://kimamanidance.hatenablog.com/entry/2021/02/14/180000"
+
+[[places]]
+id = "hamarikyu-gardens"
+name = "浜離宮恩賜庭園"
+area = "中央区"
+lat = 35.66
+lon = 139.762
+category = "park"
+note = "紧挨汐留高楼群、引海水入池的江户大名庭园，春天油菜花田一片金黄，和背后的高楼对比很有看头。"
+checked = 2026-10-31
+idols = ["chiyuki"]
+source = "【シークレット・ヒロイン】桑山千雪、［背景］菜の花畑；https://aokamilong.hatenablog.com/entry/2020/02/16/190000；https://baki1771104.com/archives/4560；https://note.com/ika_squid/n/n2ebc1819b2b3"
+seasons = ["spring"]
+
+[[places]]
+id = "yanaka-ginza"
+name = "谷中銀座商店街"
+area = "台東区"
+lat = 35.72766
+lon = 139.76697
+category = "shopping-street"
+note = "从日暮里站下坡走到的下町商店街，以边走边吃可乐饼、炸肉饼出名，入口台阶「夕やけだんだん」看夕阳很有名，也是有名的猫街。"
+checked = 2026-10-31
+idols = ["juri"]
+source = "【坂道だらけのこの街で】西城樹里（夕やけだんだん、谷中銀座通り）、［背景］商店街；https://baki1771104.com/archives/6851；https://laquari.hatenablog.jp/entry/2020/08/12/105328；https://note.com/ika_squid/n/n2ebc1819b2b3"
+
+[[places]]
+id = "tokyo-skytree"
+name = "東京スカイツリー"
+area = "墨田区"
+lat = 35.71006
+lon = 139.81072
+category = "night-view"
+note = "634 米高的电波塔，350 米的天望甲板和 450 米的天望回廊能俯瞰全东京，夜景尤其有名，脚下是商场ソラマチ。"
+checked = 2026-10-31
+idols = ["yuika"]
+source = "【NOT≠EQUAL】三峰結華、［背景］電波塔；https://note.com/suzuya_blowgun/n/n67eb12eeb6d9；https://soranowoto.cloudfree.jp/html_l1/imas_shiny_colors.html；https://kimamanidance.hatenablog.com/entry/2020/11/08/180000"
+
+[[places]]
+id = "aqua-city-odaiba"
+name = "アクアシティお台場"
+area = "港区"
+lat = 35.62781
+lon = 139.77356
+category = "mall"
+note = "台场海边的购物中心，朝海的平台上能看到彩虹大桥和东京塔叠在一起，也是看夜景的热门地方。"
+checked = 2026-10-31
+source = "［背景］展望ビーチ／プロムナード（アクアシティ西侧平台望向海面）；https://baki1771104.com/archives/4560；https://note.com/suzuya_blowgun/n/n67eb12eeb6d9；https://kimamanidance.hatenablog.com/entry/2020/01/02/180000"
+
+[[places]]
+id = "symbol-promenade-park"
+name = "シンボルプロムナード公園"
+area = "港区"
+lat = 35.62375
+lon = 139.77526
+category = "park"
+note = "从台场延伸到青海、有明的长条步道公园，高架平台、林荫道和广场连成一片，夜里隔着灯饰能看到彩虹大桥和东京塔。"
+checked = 2026-10-31
+idols = ["chiyuki"]
+source = "【マイ・ピュア・ロマンス】桑山千雪（活动剧情，公园停车场 A 栋顶上的连廊）；https://aokamilong.hatenablog.com/entry/2019/02/24/193421"
+
+[[places]]
+id = "odaiba-kaihin-park"
+name = "お台場海浜公園"
+area = "港区"
+lat = 35.63081
+lon = 139.77661
+category = "seaside"
+note = "台场有人工沙滩和海滨步道的公园，背靠彩虹大桥和自由女神像，有水上巴士码头和展望平台。"
+checked = 2026-10-31
+idols = ["juri"]
+source = "【曲り角のランウェイ】西城樹里（码头附近）、［背景］レインボーブリッジ（展望平台附近）；https://note.com/suzuya_blowgun/n/n67eb12eeb6d9；https://baki1771104.com/archives/4560；https://note.com/ika_squid/n/n2ebc1819b2b3"
+
+[[places]]
+id = "decks-tokyo-beach"
+name = "デックス東京ビーチ"
+area = "港区"
+lat = 35.62914
+lon = 139.77586
+category = "mall"
+note = "面朝お台場海浜公園的购物中心，海侧木平台能看到彩虹大桥和东京塔，冬天有灯饰。"
+checked = 2026-10-31
+idols = ["chiyoko"]
+source = "【ちょこ色×きらきらロマン】園田智代子；https://note.com/suzuya_blowgun/n/n67eb12eeb6d9；https://yakolab.hatenablog.jp/entry/Shiny_Location；https://baki1771104.com/archives/4560"
+
+[[places]]
+id = "sumidagawa-terrace-kuramae"
+name = "隅田川テラス"
+area = "台東区"
+lat = 35.70281
+lon = 139.79349
+category = "park"
+note = "沿隅田川岸边修的亲水步道，蔵前一带和车道隔开、很安静，能看到往来的船、总武线铁桥和蔵前橋。"
+checked = 2026-10-31
+idols = ["asahi"]
+source = "［背景］川沿いの遊歩道（芹沢あさひ Landing Point 篇首次出现）；https://note.com/ika_squid/n/n2ebc1819b2b3；https://kimamanidance.hatenablog.com/entry/2021/10/30/180000"
+
+[[places]]
+id = "asakusa-nakamise"
+name = "仲見世通り"
+area = "台東区"
+lat = 35.71205
+lon = 139.7965
+category = "shopping-street"
+note = "从浅草寺雷门通往本堂的参道商店街，人形烧、炸馒头和和风小杂货店排成一长列。"
+checked = 2026-10-31
+idols = ["koito"]
+source = "【おみくじ結びますか】福丸小糸（第 1 张）；https://kimamanidance.hatenablog.com/entry/2022/08/07/180000；https://www.google.com/maps/d/viewer?mid=1f5DNrLap-5JlVzCEoqnv4efmmCMV7WcF"
+
+[[places]]
+id = "sunshine-aquarium"
+name = "サンシャイン水族館"
+area = "豊島区"
+lat = 35.72858
+lon = 139.71975
+category = "amusement"
+note = "池袋サンシャインシティ楼顶的城市水族馆，有水母隧道水槽，还有企鹅像在高楼天空里游的户外展示。"
+checked = 2026-10-31
+idols = ["amana"]
+source = "【ゆらゆらアクアリウム】大崎甘奈（水母隧道）；https://aokamilong.hatenablog.com/entry/2019/06/15/100000；https://laquari.hatenablog.jp/entry/2020/08/12/105328；https://kimamanidance.hatenablog.com/entry/2021/05/30/180000"
+
+[[places]]
+id = "shinagawa-aquarium"
+name = "しながわ水族館"
+area = "品川区"
+lat = 35.58847
+lon = 139.7375
+category = "amusement"
+note = "大森海边公园里的区立水族馆，有鱼从头顶游过的隧道水槽和海豚、海狮表演。"
+checked = 2026-10-31
+idols = ["amana"]
+source = "【ゆらゆらアクアリウム】大崎甘奈（隧道水槽）；https://aokamilong.hatenablog.com/entry/2019/06/15/100000；https://soranowoto.cloudfree.jp/html_l1/imas_shiny_colors.html"
+
+[[places]]
+id = "shimokitazawa-minamiguchi-shotengai"
+name = "下北沢南口商店街"
+area = "世田谷区"
+lat = 35.66068
+lon = 139.66752
+category = "shopping-street"
+note = "下北沢站南口延伸出去、挂着拱门招牌的商店街，旧衣店、拉面店、杂货店和小型 Live House 混在一起。"
+checked = 2026-10-31
+idols = ["kaho", "chiyoko", "juri", "rinze", "natsuha"]
+source = "SETSUNA BEAT 放課後クライマックスガールズ キービジュアル；https://baki1771104.com/archives/6851"
+
+[[places]]
+id = "kamakura-hasedera"
+name = "長谷寺"
+area = "神奈川県鎌倉市"
+lat = 35.31246
+lon = 139.53299
+category = "shrine"
+note = "镰仓长谷的观音寺，半山腰的观景台能一览由比ヶ浜和相模湾，初夏约 2500 株绣球花盛开。"
+checked = 2026-10-31
+idols = ["koito"]
+source = "【傍白のあいだ】福丸小糸、［背景］お寺（活动「さざなみはいつも凡庸な音がする」）；https://note.com/ika_squid/n/n2ebc1819b2b3；https://www.google.com/maps/d/viewer?mid=1f5DNrLap-5JlVzCEoqnv4efmmCMV7WcF"
+seasons = ["summer"]
+
+[[places]]
+id = "yokohama-cosmo-world"
+name = "よこはまコスモワールド"
+area = "神奈川県横浜市中区"
+lat = 35.4552
+lon = 139.63668
+category = "amusement"
+note = "港未来运河边免费入园的城市游乐园，大摩天轮「コスモクロック21」是地标，运河夹着的儿童区有一座两层旋转木马。"
+checked = 2026-10-31
+idols = ["toru"]
+source = "【まわるものについて】浅倉透（キッズカーニバル・ゾーンのメリーゴーランド）、［背景］遊園地；https://note.com/ika_squid/n/n2ebc1819b2b3；https://kimamanidance.hatenablog.com/entry/2021/02/13/180000"
+
+[[places]]
+id = "shichirigahama"
+name = "七里ヶ浜"
+area = "神奈川県鎌倉市"
+lat = 35.30636
+lon = 139.50946
+category = "seaside"
+note = "沿江之电铁路延伸的镰仓海岸，鎌倉高校前站道口那头就是大海和江之岛，常有冲浪和看夕阳的人。"
+checked = 2026-10-31
+idols = ["toru", "madoka", "koito", "hinana"]
+source = "SETSUNA BEAT ノクチル キービジュアル（鎌倉高校前駅そばの踏切から海を望む）；https://baki1771104.com/archives/6851"
+
+[[places]]
+id = "aeon-mall-makuhari-shintoshin"
+name = "イオンモール幕張新都心"
+area = "千葉県千葉市美浜区"
+lat = 35.65589
+lon = 140.02894
+category = "mall"
+note = "幕张新都心的超大型购物中心，四栋楼里有服装杂货、美食广场和电影院，能逛一整天。"
+checked = 2026-10-31
+source = "［背景］モール（通用剧情背景）；https://baki1771104.com/archives/6851；https://kimamanidance.hatenablog.com/entry/2021/12/19/180000；https://note.com/ika_squid/n/n2ebc1819b2b3"
+
+[[places]]
+id = "kaihin-makuhari-station"
+name = "海浜幕張駅"
+area = "千葉県千葉市美浜区"
+lat = 35.64833
+lon = 140.04186
+category = "mall"
+note = "幕张展览馆的最近车站，站楼ペリエ海浜幕張里有咖啡馆和杂货店，演出和展会的日子人山人海。"
+checked = 2026-10-31
+idols = ["rinze"]
+source = "【をとめ条約】杜野凛世（1・2番線ホーム）；https://baki1771104.com/archives/6851；https://kimamanidance.hatenablog.com/entry/2021/12/19/180000"
+
+[[places]]
+id = "funabashi-sanbanze-seaside-park"
+name = "ふなばし三番瀬海浜公園"
+area = "千葉県船橋市"
+lat = 35.67194
+lon = 139.96694
+category = "seaside"
+note = "面朝东京湾深处滩涂「三番瀬」的海滨公园，退潮时露出大片滩涂，春天赶海挖蛤蜊，冬天看候鸟。"
+checked = 2026-10-31
+idols = ["toru"]
+source = "［背景］干潟（G.R.A.D. 浅倉透篇首次出现）；https://note.com/ika_squid/n/n2ebc1819b2b3"
+
+[[places]]
+id = "tokyo-tower"
+name = "東京タワー"
+area = "港区"
+lat = 35.65861
+lon = 139.74556
+category = "night-view"
+note = "芝公园的红白电波塔，150 米主展望台和 250 米顶层展望台能俯瞰东京，夜里塔身点灯很好看。"
+checked = 2026-10-31
+idols = ["toru"]
+source = "【つづく、】浅倉透（背景里的东京塔）；https://kimamanidance.hatenablog.com/entry/2025/02/22/000000"
+
+# 其余各类（小店取自 OSM，神社、公园、名所取自 Wikidata）
+
+[[places]]
+id = "coffee-seibu-shinjuku"
+name = "珈琲西武"
+area = "新宿区"
+lat = 35.69396
+lon = 139.70295
+category = "cafe"
+note = "新宿东口老牌喫茶店，红丝绒沙发，招牌是堆得很高的布丁和咖啡。"
+checked = 2026-10-31
+
+[[places]]
+id = "meikyoku-lanburu-shinjuku"
+name = "らんぶる"
+area = "新宿区"
+lat = 35.69066
+lon = 139.70404
+category = "cafe"
+note = "新宿的地下名曲喫茶，宽敞的厅里放着古典乐，水晶吊灯和红椅子。"
+checked = 2026-10-31
+
+[[places]]
+id = "edinburgh-shinjuku"
+name = "珈琲貴族エジンバラ 新宿本店"
+area = "新宿区"
+lat = 35.69043
+lon = 139.70627
+category = "cafe"
+note = "新宿三丁目的二十四小时喫茶店，深色木装潢，窗外是新宿通。"
+checked = 2026-10-31
+
+[[places]]
+id = "tajimaya-coffee"
+name = "但馬屋珈琲店"
+area = "新宿区"
+lat = 35.69268
+lon = 139.69973
+category = "cafe"
+note = "新宿西口回忆横丁旁的老咖啡店，昏暗的灯光和一排排咖啡杯。"
+checked = 2026-10-31
+
+[[places]]
+id = "sembikiya-nihonbashi"
+name = "千疋屋総本店"
+area = "中央区"
+lat = 35.68686
+lon = 139.77334
+category = "cafe"
+note = "日本桥的老牌水果店，楼上的水果喫茶室卖芭菲和蜜瓜。"
+checked = 2026-10-31
+
+[[places]]
+id = "milonga-nuova"
+name = "ミロンガ ヌオーバ"
+area = "千代田区"
+lat = 35.69561
+lon = 139.7597
+category = "cafe"
+note = "神保町小巷里的探戈喫茶店，砖墙，放着阿根廷探戈唱片。"
+checked = 2026-10-31
+
+[[places]]
+id = "saboru-jimbocho"
+name = "さぼうる"
+area = "千代田区"
+lat = 35.69557
+lon = 139.75868
+category = "cafe"
+note = "神保町的山小屋风喫茶店，门口立着图腾柱，招牌是奶油苏打。"
+checked = 2026-10-31
+
+[[places]]
+id = "ladrio-jimbocho"
+name = "ラドリオ"
+area = "千代田区"
+lat = 35.69566
+lon = 139.7598
+category = "cafe"
+note = "神保町小巷的砖砌老喫茶店，据说是维也纳咖啡在日本的起点。"
+checked = 2026-10-31
+
+[[places]]
+id = "blue-bottle-kiyosumi"
+name = "ブルーボトルコーヒー 清澄白河"
+area = "江東区"
+lat = 35.67774
+lon = 139.8006
+category = "cafe"
+note = "清澄白河仓库改造的咖啡馆，挑高的厂房里能看到烘豆机。"
+checked = 2026-10-31
+
+[[places]]
+id = "sarutahiko-ebisu"
+name = "猿田彦珈琲 恵比寿本店"
+area = "渋谷区"
+lat = 35.64764
+lon = 139.7109
+category = "cafe"
+note = "惠比寿站附近的小咖啡店，窄窄的木头店面。"
+checked = 2026-10-31
+
+[[places]]
+id = "onibus-nakameguro"
+name = "ONIBUS COFFEE 中目黒"
+area = "目黒区"
+lat = 35.64318
+lon = 139.69802
+category = "cafe"
+note = "中目黒铁道边的独栋小咖啡店，二楼能看到东横线电车开过。"
+checked = 2026-10-31
+
+[[places]]
+id = "fuglen-tokyo"
+name = "Fuglen Tokyo"
+area = "渋谷区"
+lat = 35.66664
+lon = 139.69243
+category = "cafe"
+note = "代代木公园旁的北欧咖啡馆，复古木家具，门口有长椅。"
+checked = 2026-10-31
+
+[[places]]
+id = "little-nap-coffee"
+name = "Little Nap Coffee Stand"
+area = "渋谷区"
+lat = 35.6721
+lon = 139.69059
+category = "cafe"
+note = "代代木公园西边的小咖啡摊，外带一杯就去公园。"
+checked = 2026-10-31
+
+[[places]]
+id = "umezono-asakusa"
+name = "浅草 梅園"
+area = "台東区"
+lat = 35.71238
+lon = 139.79633
+category = "cafe"
+note = "浅草的老牌甘味处，招牌是粟善哉和馅蜜。"
+checked = 2026-10-31
+
+[[places]]
+id = "funawa-asakusa"
+name = "舟和"
+area = "台東区"
+lat = 35.71191
+lon = 139.79638
+category = "cafe"
+note = "浅草的老店，卖芋羊羹和馅子玉，二楼可以坐下吃甜品。"
+checked = 2026-10-31
+
+[[places]]
+id = "asakusa-kagetudo"
+name = "浅草花月堂 本店"
+area = "台東区"
+lat = 35.71461
+lon = 139.79519
+category = "cafe"
+note = "浅草寺附近卖巨大菠萝包的店，排队的人手里捧着热乎的面包。"
+checked = 2026-10-31
+
+[[places]]
+id = "kameju"
+name = "御菓子司 亀十"
+area = "台東区"
+lat = 35.71065
+lon = 139.79675
+category = "cafe"
+note = "雷门对面的和果子老店，铜锣烧又大又软，门口常排队。"
+checked = 2026-10-31
+
+[[places]]
+id = "kojo-ueno"
+name = "高級喫茶 古城"
+area = "台東区"
+lat = 35.71172
+lon = 139.779
+category = "cafe"
+note = "上野的地下喫茶店，彩色玻璃、吊灯和大理石，像古堡的大厅。"
+checked = 2026-10-31
+
+[[places]]
+id = "ojo-ueno"
+name = "珈琲 王城"
+area = "台東区"
+lat = 35.71003
+lon = 139.77583
+category = "cafe"
+note = "上野的老喫茶店，复古的霓虹招牌和红沙发。"
+checked = 2026-10-31
+
+[[places]]
+id = "mihashi-ueno"
+name = "みはし"
+area = "台東区"
+lat = 35.7103
+lon = 139.774
+category = "cafe"
+note = "上野站前的甘味处，卖馅蜜和葛切。"
+checked = 2026-10-31
+
+[[places]]
+id = "kayaba-coffee"
+name = "カヤバ珈琲"
+area = "台東区"
+lat = 35.72115
+lon = 139.77077
+category = "cafe"
+note = "谷中的老町屋改的喫茶店，木头格子窗，招牌是鸡蛋三明治。"
+checked = 2026-10-31
+
+[[places]]
+id = "nanatsumori-koenji"
+name = "七つ森"
+area = "杉並区"
+lat = 35.70014
+lon = 139.64751
+category = "cafe"
+note = "高圆寺的老喫茶店，昏暗的木头和旧物，招牌是蛋包饭和甜点。"
+checked = 2026-10-31
+
+[[places]]
+id = "wako-tea-salon"
+name = "和光 アネックス ティーサロン"
+area = "中央区"
+lat = 35.67172
+lon = 139.76473
+category = "cafe"
+note = "银座和光旁的茶室，玻璃柜里是精致的蛋糕和巧克力。"
+checked = 2026-10-31
+
+[[places]]
+id = "lion-shibuya"
+name = "名曲喫茶ライオン"
+area = "渋谷区"
+lat = 35.65929
+lon = 139.69636
+category = "cafe"
+note = "道玄坂小巷的名曲喫茶，座位全朝着巨大的音箱，禁止说话。"
+checked = 2026-10-31
+
+[[places]]
+id = "morinoen-ningyocho"
+name = "森乃園"
+area = "中央区"
+lat = 35.68536
+lon = 139.78362
+category = "cafe"
+note = "人形町甘酒横丁的焙茶店，一楼卖茶叶，二楼吃焙茶甜品。"
+checked = 2026-10-31
+
+[[places]]
+id = "takagiya-shibamata"
+name = "高木屋老舗"
+area = "葛飾区"
+lat = 35.75765
+lon = 139.87662
+category = "cafe"
+note = "柴又帝释天参道的老店，卖草团子，店里能坐下喝茶。"
+checked = 2026-10-31
+
+[[places]]
+id = "kanda-matsuya"
+name = "神田まつや"
+area = "千代田区"
+lat = 35.69612
+lon = 139.76878
+category = "cafe"
+note = "神田须田町的老荞麦面店，木造的老房子，中午常排队。"
+checked = 2026-10-31
+
+[[places]]
+id = "takemura-kanda"
+name = "竹むら"
+area = "千代田区"
+lat = 35.69667
+lon = 139.76907
+category = "cafe"
+note = "神田须田町的木造甘味处，招牌是炸馒头和栗子善哉。"
+checked = 2026-10-31
+
+[[places]]
+id = "yoshikami-asakusa"
+name = "洋食ヨシカミ"
+area = "台東区"
+lat = 35.71291
+lon = 139.79378
+category = "cafe"
+note = "浅草的老洋食店，开放厨房，招牌是牛肉烩饭。"
+checked = 2026-10-31
+
+[[places]]
+id = "ginza-kimuraya"
+name = "銀座木村家"
+area = "中央区"
+lat = 35.67172
+lon = 139.76521
+category = "cafe"
+note = "银座四丁目的老面包店，招牌是红豆面包，楼上有咖啡厅。"
+checked = 2026-10-31
+
+[[places]]
+id = "pelican-cafe"
+name = "ペリカンカフェ"
+area = "台東区"
+lat = 35.70701
+lon = 139.79112
+category = "cafe"
+note = "浅草老面包店开的咖啡馆，吃厚切吐司。"
+checked = 2026-10-31
+
+[[places]]
+id = "dandelion-kuramae"
+name = "Dandelion Chocolate"
+area = "台東区"
+lat = 35.70359
+lon = 139.78958
+category = "cafe"
+note = "藏前仓库改的巧克力工坊，能看到做巧克力，卖热可可。"
+checked = 2026-10-31
+
+[[places]]
+id = "jindaiji-soba-yusui"
+name = "湧水"
+area = "調布市"
+lat = 35.66766
+lon = 139.54689
+category = "cafe"
+note = "深大寺门前的荞麦面店，旁边是流水和树林。"
+checked = 2026-10-31
+
+[[places]]
+id = "iwata-coffee"
+name = "イワタコーヒー店"
+area = "神奈川県鎌倉市"
+lat = 35.31941
+lon = 139.55139
+category = "cafe"
+note = "镰仓小町通的老喫茶店，招牌是厚厚的松饼。"
+checked = 2026-10-31
+
+[[places]]
+id = "toshimaya-kamakura"
+name = "豊島屋"
+area = "神奈川県鎌倉市"
+lat = 35.32046
+lon = 139.55256
+category = "cafe"
+note = "镰仓若宫大路的老点心店，招牌是鸽子形的鸠饼干。"
+checked = 2026-10-31
+
+[[places]]
+id = "kirtekiro-motomachi"
+name = "仏蘭西料亭 横濱元町 霧笛楼"
+area = "神奈川県横浜市中区"
+lat = 35.44031
+lon = 139.6491
+category = "cafe"
+note = "横滨元町的法餐老店，楼下的点心店卖港口风的点心。"
+checked = 2026-10-31
+
+[[places]]
+id = "kikuya-motomachi"
+name = "喜久家洋菓子舗"
+area = "神奈川県横浜市中区"
+lat = 35.4407
+lon = 139.64876
+category = "cafe"
+note = "横滨元町的老洋果子店，招牌是朗姆酒巧克力蛋糕。"
+checked = 2026-10-31
+
+[[places]]
+id = "bashamichi-jubankan"
+name = "馬車道十番館"
+area = "神奈川県横浜市中区"
+lat = 35.44738
+lon = 139.63488
+category = "cafe"
+note = "横滨马车道的红砖洋馆，一楼喫茶，招牌是牛奶卷面包。"
+checked = 2026-10-31
+
+[[places]]
+id = "kotobukiya-kawagoe"
+name = "亀屋"
+area = "埼玉県川越市"
+lat = 35.92359
+lon = 139.48283
+category = "cafe"
+note = "川越的老和果子店，卖川越特产的红薯点心。"
+checked = 2026-10-31
+
+[[places]]
+id = "glitch-coffee"
+name = "Glitch"
+area = "千代田区"
+lat = 35.69378
+lon = 139.7613
+category = "cafe"
+note = "神保町附近的精品咖啡店，玻璃店面，浅烘的手冲。"
+checked = 2026-10-31
+
+[[places]]
+id = "streamer-coffee"
+name = "Streamer Coffee Company"
+area = "渋谷区"
+lat = 35.66345
+lon = 139.70392
+category = "cafe"
+note = "涩谷的咖啡店，招牌是拉花拿铁。"
+checked = 2026-10-31
+
+[[places]]
+id = "bear-pond-espresso"
+name = "Bear Pond"
+area = "世田谷区"
+lat = 35.66396
+lon = 139.66789
+category = "cafe"
+note = "下北沢的意式浓缩小店。"
+checked = 2026-10-31
+
+[[places]]
+id = "allpress-kiyosumi"
+name = "Allpress Espresso Cafe"
+area = "江東区"
+lat = 35.67775
+lon = 139.80515
+category = "cafe"
+note = "清澄白河的木造仓库改的烘焙咖啡店。"
+checked = 2026-10-31
+
+[[places]]
+id = "pierre-marcolini-ginza"
+name = "ピエールマルコリーニ"
+area = "中央区"
+lat = 35.67119
+lon = 139.76353
+category = "cafe"
+note = "银座的巧克力店，二楼吃巧克力芭菲。"
+checked = 2026-10-31
+
+[[places]]
+id = "lattest-omotesando"
+name = "Lattest"
+area = "渋谷区"
+lat = 35.66889
+lon = 139.71233
+category = "cafe"
+note = "表参道的咖啡站，招牌是冰拿铁。"
+checked = 2026-10-31
+
+[[places]]
+id = "mameya-kakeru"
+name = "KOFFEE MAMEYA Kakeru"
+area = "江東区"
+lat = 35.67646
+lon = 139.80427
+category = "cafe"
+note = "清澄白河的咖啡吧台，像品鉴会一样一道道上。"
+checked = 2026-10-31
+
+[[places]]
+id = "cafe-bach"
+name = "バッハ"
+area = "台東区"
+lat = 35.72679
+lon = 139.80033
+category = "cafe"
+note = "南千住的老牌自家烘焙咖啡店，柜台后面是一排排豆子和手冲壶。"
+checked = 2026-10-31
+
+[[places]]
+id = "hattifnatt"
+name = "HATTIFNATT 吉祥寺のおうち"
+area = "武蔵野市"
+lat = 35.70326
+lon = 139.58522
+category = "cafe"
+note = "吉祥寺的童话风咖啡店，矮门，墙上画满小人。"
+checked = 2026-10-31
+
+[[places]]
+id = "tsuta-coffee"
+name = "蔦珈琲店"
+area = "港区"
+lat = 35.6618
+lon = 139.71155
+category = "cafe"
+note = "青山小巷带庭院的老喫茶店，窗外是爬山虎和小院子。"
+checked = 2026-10-31
+
+[[places]]
+id = "ivy-place"
+name = "IVY PLACE"
+area = "渋谷区"
+lat = 35.64928
+lon = 139.7
+category = "cafe"
+note = "代官山茑屋书店旁的餐厅咖啡，有露台，招牌是松饼。"
+checked = 2026-10-31
+
+[[places]]
+id = "enoshima-tobicho"
+name = "しらす問屋 とびっちょ本店"
+area = "神奈川県藤沢市"
+lat = 35.3013
+lon = 139.48223
+category = "cafe"
+note = "江之岛参道上的海鲜饭店，招牌是吻仔鱼盖饭。"
+checked = 2026-10-31
+
+[[places]]
+id = "harajuku-marion-crepes"
+name = "マリオンクレープ"
+area = "渋谷区"
+lat = 35.67126
+lon = 139.70491
+category = "cafe"
+note = "竹下通的可丽饼摊，门口摆满可丽饼模型。"
+checked = 2026-10-31
+
+[[places]]
+id = "kakigori-himitsudou"
+name = "かき氷専門店 ひみつ堂"
+area = "台東区"
+lat = 35.72734
+lon = 139.76659
+category = "cafe"
+note = "谷中的刨冰店，糖浆现熬，夏天排长队。"
+checked = 2026-10-31
+seasons = ["summer"]
+
+[[places]]
+id = "ueno-seiyoken"
+name = "精養軒"
+area = "台東区"
+lat = 35.71436
+lon = 139.7721
+category = "cafe"
+note = "上野公园里的老牌西餐厅，窗外是不忍池。"
+checked = 2026-10-31
+
+[[places]]
+id = "imojin-nezu"
+name = "芋甚"
+area = "文京区"
+lat = 35.72021
+lon = 139.76362
+category = "cafe"
+note = "根津的老甘味店，招牌是小仓冰淇淋和刨冰。"
+checked = 2026-10-31
+
+[[places]]
+id = "ozasa-kichijoji"
+name = "小ざさ"
+area = "武蔵野市"
+lat = 35.70397
+lon = 139.5791
+category = "cafe"
+note = "吉祥寺口琴横丁的小和果子店，只卖羊羹和最中，清早就有人排队。"
+checked = 2026-10-31
+
+[[places]]
+id = "mozuki-nishiogi"
+name = "物豆奇"
+area = "杉並区"
+lat = 35.70537
+lon = 139.59695
+category = "cafe"
+note = "西荻洼的老喫茶店，昏暗的木头和满屋的旧钟表。"
+checked = 2026-10-31
+
+[[places]]
+id = "enseigne-dangle"
+name = "カフェアンセーニュダングル"
+area = "渋谷区"
+lat = 35.67363
+lon = 139.70396
+category = "cafe"
+note = "原宿的地下喫茶店，深色木头和法式的旧装潢。"
+checked = 2026-10-31
+
+[[places]]
+id = "shoretsuan"
+name = "勝烈庵 本店"
+area = "神奈川県横浜市中区"
+lat = 35.44715
+lon = 139.63491
+category = "cafe"
+note = "横滨马车道的炸猪排老店，墙上挂着版画。"
+checked = 2026-10-31
+
+[[places]]
+id = "yanagiya-ningyocho"
+name = "柳屋 たい焼き"
+area = "中央区"
+lat = 35.68542
+lon = 139.78403
+category = "cafe"
+note = "人形町甘酒横丁的鲷鱼烧老店，一只只用模子烤，门口排队。"
+checked = 2026-10-31
+
+[[places]]
+id = "wakaba-yotsuya"
+name = "わかば たい焼き"
+area = "新宿区"
+lat = 35.686
+lon = 139.72681
+category = "cafe"
+note = "四谷的鲷鱼烧老店，馅一直塞到尾巴。"
+checked = 2026-10-31
+
+[[places]]
+id = "usagiya-ueno"
+name = "うさぎや"
+area = "台東区"
+lat = 35.70617
+lon = 139.77182
+category = "cafe"
+note = "上野的老和果子店，招牌是铜锣烧。"
+checked = 2026-10-31
+
+[[places]]
+id = "gojuban-kagurazaka"
+name = "五十番　神楽坂本店"
+area = "新宿区"
+lat = 35.70238
+lon = 139.73811
+category = "cafe"
+note = "神乐坂的中华包子店，门口蒸笼冒着热气，卖大肉包。"
+checked = 2026-10-31
+
+[[places]]
+id = "kirara-kamakura"
+name = "茶房 雲母"
+area = "神奈川県鎌倉市"
+lat = 35.32193
+lon = 139.54659
+category = "cafe"
+note = "镰仓的甘味处，招牌是白玉馅蜜。"
+checked = 2026-10-31
+
+[[places]]
+id = "sakaeya-milk-hall"
+name = "栄屋ミルクホール"
+area = "千代田区"
+lat = 35.69487
+lon = 139.76877
+category = "cafe"
+note = "神田的老食堂，昭和时代的店面，卖拉面和咖喱。"
+checked = 2026-10-31
+
+[[places]]
+id = "ueno-park"
+name = "上野恩賜公園"
+area = "台東区"
+lat = 35.71222
+lon = 139.77111
+category = "park"
+note = "上野站旁的大公园，有喷水池、不忍池和博物馆群，周末有街头艺人。"
+checked = 2026-10-31
+
+[[places]]
+id = "yoyogi-park"
+name = "代々木公園"
+area = "渋谷区"
+lat = 35.67198
+lon = 139.69769
+category = "park"
+note = "原宿旁边的大公园，草坪开阔，常有人跑步、野餐、跳舞。"
+checked = 2026-10-31
+
+[[places]]
+id = "shinjuku-gyoen"
+name = "新宿御苑"
+area = "新宿区"
+lat = 35.68717
+lon = 139.71064
+category = "park"
+note = "新宿的大庭园，有英式草坪、日本庭园和温室，远处是高楼。"
+checked = 2026-10-31
+
+[[places]]
+id = "inokashira-park"
+name = "井の頭恩賜公園"
+area = "三鷹市"
+lat = 35.69829
+lon = 139.57147
+category = "park"
+note = "吉祥寺旁的公园，池塘里有天鹅船，周围是大树。"
+checked = 2026-10-31
+
+[[places]]
+id = "hibiya-park"
+name = "日比谷公園"
+area = "千代田区"
+lat = 35.67148
+lon = 139.75539
+category = "park"
+note = "皇居旁的西式公园，有大喷泉和花坛，四周是办公楼。"
+checked = 2026-10-31
+
+[[places]]
+id = "komazawa-park"
+name = "駒沢オリンピック公園"
+area = "世田谷区"
+lat = 35.62515
+lon = 139.66189
+category = "park"
+note = "世田谷的运动公园，有跑步道和奥运纪念塔，晨跑的人多。"
+checked = 2026-10-31
+
+[[places]]
+id = "showa-kinen-park"
+name = "国営昭和記念公園"
+area = "昭島市"
+lat = 35.70742
+lon = 139.39431
+category = "park"
+note = "立川的国营大公园，有大草坪、花田和自行车道。"
+checked = 2026-10-31
+
+[[places]]
+id = "kinuta-park"
+name = "砧公園"
+area = "世田谷区"
+lat = 35.63021
+lon = 139.6211
+category = "park"
+note = "世田谷的大草坪公园，有大树林和美术馆。"
+checked = 2026-10-31
+
+[[places]]
+id = "koishikawa-korakuen"
+name = "小石川後楽園"
+area = "文京区"
+lat = 35.70556
+lon = 139.74917
+category = "park"
+note = "东京巨蛋旁的江户时代庭园，有圆月桥和池塘。"
+checked = 2026-10-31
+
+[[places]]
+id = "rikugien"
+name = "六義園"
+area = "文京区"
+lat = 35.73306
+lon = 139.74667
+category = "park"
+note = "驹込的回游式日本庭园，池塘和小山，春天有大垂枝樱。"
+checked = 2026-10-31
+
+[[places]]
+id = "kiyosumi-garden"
+name = "清澄庭園"
+area = "江東区"
+lat = 35.67994
+lon = 139.79772
+category = "park"
+note = "清澄白河的日本庭园，池塘里铺着踏石，水边有凉亭。"
+checked = 2026-10-31
+
+[[places]]
+id = "kyu-furukawa-gardens"
+name = "旧古河庭園"
+area = "北区"
+lat = 35.74297
+lon = 139.74669
+category = "park"
+note = "北区的西洋馆和玫瑰园，下面是日本庭园。"
+checked = 2026-10-31
+
+[[places]]
+id = "tonogayato-garden"
+name = "殿ヶ谷戸庭園"
+area = "国分寺市"
+lat = 35.699
+lon = 139.482
+category = "park"
+note = "国分寺站旁的小庭园，有涌泉和竹林。"
+checked = 2026-10-31
+
+[[places]]
+id = "mukojima-hyakkaen"
+name = "向島百花園"
+area = "墨田区"
+lat = 35.72419
+lon = 139.81544
+category = "park"
+note = "墨田区的江户时代花园，四季都有野花，能看到晴空塔。"
+checked = 2026-10-31
+
+[[places]]
+id = "todoroki-valley"
+name = "等々力渓谷"
+area = "世田谷区"
+lat = 35.60678
+lon = 139.6461
+category = "park"
+note = "世田谷住宅区里的小溪谷，树荫下的木栈道和小瀑布。"
+checked = 2026-10-31
+
+[[places]]
+id = "shakujii-park"
+name = "石神井公園"
+area = "練馬区"
+lat = 35.73889
+lon = 139.5975
+category = "park"
+note = "练马的池塘公园，有划船池和水边的树林。"
+checked = 2026-10-31
+
+[[places]]
+id = "hikarigaoka-park"
+name = "光が丘公園"
+area = "練馬区"
+lat = 35.76667
+lon = 139.62917
+category = "park"
+note = "练马的大公园，银杏大道和大草坪。"
+checked = 2026-10-31
+
+[[places]]
+id = "mizumoto-park"
+name = "水元公園"
+area = "葛飾区"
+lat = 35.78641
+lon = 139.86925
+category = "park"
+note = "葛饰的水乡公园，水边有白杨，初夏开菖蒲。"
+checked = 2026-10-31
+
+[[places]]
+id = "toneri-park"
+name = "舎人公園"
+area = "足立区"
+lat = 35.79901
+lon = 139.76879
+category = "park"
+note = "足立区的大公园，春天有千本樱。"
+checked = 2026-10-31
+
+[[places]]
+id = "kiba-park"
+name = "木場公園"
+area = "江東区"
+lat = 35.67625
+lon = 139.80842
+category = "park"
+note = "江东区的公园，有大吊桥和草坪，旁边是现代美术馆。"
+checked = 2026-10-31
+
+[[places]]
+id = "toyama-park"
+name = "戸山公園"
+area = "新宿区"
+lat = 35.70533
+lon = 139.70456
+category = "park"
+note = "新宿的公园，有箱根山小丘，是二十三区里最高的山。"
+checked = 2026-10-31
+
+[[places]]
+id = "kitanomaru-park"
+name = "北の丸公園"
+area = "千代田区"
+lat = 35.69153
+lon = 139.75106
+category = "park"
+note = "皇居北边的公园，有护城河、樱花和武道馆。"
+checked = 2026-10-31
+
+[[places]]
+id = "imperial-palace-east-gardens"
+name = "皇居東御苑"
+area = "千代田区"
+lat = 35.6875
+lon = 139.7575
+category = "park"
+note = "皇居里对外开放的庭园，石墙、天守台遗迹和大草坪。"
+checked = 2026-10-31
+
+[[places]]
+id = "arisugawa-park"
+name = "有栖川宮記念公園"
+area = "港区"
+lat = 35.65201
+lon = 139.72562
+category = "park"
+note = "广尾的坡地公园，有池塘、小溪和树林。"
+checked = 2026-10-31
+
+[[places]]
+id = "rinshi-no-mori"
+name = "林試の森公園"
+area = "品川区"
+lat = 35.62494
+lon = 139.7035
+category = "park"
+note = "目黑的森林公园，原来是林业试验场，大树很多。"
+checked = 2026-10-31
+
+[[places]]
+id = "shiba-park"
+name = "芝公園"
+area = "港区"
+lat = 35.65611
+lon = 139.74833
+category = "park"
+note = "东京塔脚下的公园，抬头就是红白的塔。"
+checked = 2026-10-31
+
+[[places]]
+id = "kyu-shiba-rikyu"
+name = "旧芝離宮恩賜庭園"
+area = "港区"
+lat = 35.655
+lon = 139.759
+category = "park"
+note = "浜松町站旁的小庭园，池塘对面是高楼。"
+checked = 2026-10-31
+
+[[places]]
+id = "jindai-botanical-garden"
+name = "神代植物公園"
+area = "調布市"
+lat = 35.67136
+lon = 139.54591
+category = "park"
+note = "调布的植物园，有玫瑰园和大温室。"
+checked = 2026-10-31
+
+[[places]]
+id = "nogawa-park"
+name = "野川公園"
+area = "調布市"
+lat = 35.68237
+lon = 139.52459
+category = "park"
+note = "三鹰、小金井一带的公园，野川从中间流过，有大草坪。"
+checked = 2026-10-31
+
+[[places]]
+id = "koganei-park"
+name = "小金井公園"
+area = "小金井市"
+lat = 35.71641
+lon = 139.52119
+category = "park"
+note = "小金井的大公园，有樱花林和江户东京建筑园。"
+checked = 2026-10-31
+
+[[places]]
+id = "futakotamagawa-park"
+name = "二子玉川公園"
+area = "世田谷区"
+lat = 35.60825
+lon = 139.63228
+category = "park"
+note = "多摩川边的公园，河滩开阔，对岸是神奈川。"
+checked = 2026-10-31
+
+[[places]]
+id = "yumenoshima-park"
+name = "夢の島公園"
+area = "江東区"
+lat = 35.65075
+lon = 139.82556
+category = "park"
+note = "江东区的海边公园，有热带植物馆和椰子树。"
+checked = 2026-10-31
+
+[[places]]
+id = "takaosan"
+name = "高尾山"
+area = "八王子市"
+lat = 35.62528
+lon = 139.24361
+category = "park"
+note = "八王子的山，坐缆车或走山路上去，山顶能看到富士山。"
+checked = 2026-10-31
+
+[[places]]
+id = "mitakesan"
+name = "御岳山"
+area = "青梅市"
+lat = 35.78333
+lon = 139.15
+category = "park"
+note = "青梅的山，坐缆车上去，有神社和山里的小村子。"
+checked = 2026-10-31
+
+[[places]]
+id = "mitake-valley"
+name = "御岳渓谷"
+area = "青梅市"
+lat = 35.8009
+lon = 139.18484
+category = "park"
+note = "青梅的多摩川溪谷，河边的步道和大石头，有人划皮艇。"
+checked = 2026-10-31
+
+[[places]]
+id = "okutama-lake"
+name = "奥多摩湖"
+area = "西多摩郡奥多摩町"
+lat = 35.7774
+lon = 139.0114
+category = "park"
+note = "奥多摩的水库湖，四周是山，有浮桥。"
+checked = 2026-10-31
+
+[[places]]
+id = "yamashita-park"
+name = "山下公園"
+area = "神奈川県横浜市中区"
+lat = 35.44578
+lon = 139.64975
+category = "park"
+note = "横滨的海边公园，停着冰川丸，对面是港口。"
+checked = 2026-10-31
+
+[[places]]
+id = "minato-no-mieru-oka"
+name = "港の見える丘公園"
+area = "神奈川県横浜市中区"
+lat = 35.43989
+lon = 139.655
+category = "park"
+note = "横滨山手的坡上公园，有玫瑰园，能俯瞰港口和海湾大桥。"
+checked = 2026-10-31
+
+[[places]]
+id = "sankeien"
+name = "三溪園"
+area = "神奈川県横浜市中区"
+lat = 35.41695
+lon = 139.66004
+category = "park"
+note = "横滨的日本庭园，有三重塔和古民家。"
+checked = 2026-10-31
+
+[[places]]
+id = "genjiyama-park"
+name = "源氏山公園"
+area = "神奈川県鎌倉市"
+lat = 35.32483
+lon = 139.54628
+category = "park"
+note = "镰仓的小山公园，有源赖朝像和樱花，旁边是去钱洗弁天的路。"
+checked = 2026-10-31
+
+[[places]]
+id = "yakushiike-park"
+name = "薬師池公園"
+area = "町田市"
+lat = 35.57889
+lon = 139.44778
+category = "park"
+note = "町田的池塘公园，有莲花和古民家。"
+checked = 2026-10-31
+
+[[places]]
+id = "tetsugakudo-park"
+name = "哲学堂公園"
+area = "中野区"
+lat = 35.72222
+lon = 139.67417
+category = "park"
+note = "中野的公园，散落着奇怪的哲学主题小建筑。"
+checked = 2026-10-31
+
+[[places]]
+id = "zenpukuji-park"
+name = "善福寺公園"
+area = "杉並区"
+lat = 35.71481
+lon = 139.59103
+category = "park"
+note = "杉并的池塘公园，安静，周围是树林和住宅。"
+checked = 2026-10-31
+
+[[places]]
+id = "shinobazu-pond"
+name = "不忍池"
+area = "台東区"
+lat = 35.71139
+lon = 139.77
+category = "park"
+note = "上野公园里的池塘，夏天满是荷叶，中间有弁天堂。"
+checked = 2026-10-31
+
+[[places]]
+id = "akigawa-valley"
+name = "秋川渓谷"
+area = "あきる野市"
+lat = 35.73333
+lon = 139.25
+category = "park"
+note = "秋留野的溪谷，河滩可以玩水和烤肉。"
+checked = 2026-10-31
+
+[[places]]
+id = "samuel-cocking-garden"
+name = "江の島サムエル・コッキング苑"
+area = "神奈川県藤沢市"
+lat = 35.29972
+lon = 139.47833
+category = "park"
+note = "江之岛山顶的植物园，旁边就是灯塔。"
+checked = 2026-10-31
+
+[[places]]
+id = "meiji-jingu"
+name = "明治神宮"
+area = "渋谷区"
+lat = 35.67611
+lon = 139.69917
+category = "shrine"
+note = "原宿旁的大神社，参道两边是高大的树林和大鸟居。"
+checked = 2026-10-31
+
+[[places]]
+id = "sensoji"
+name = "浅草寺"
+area = "台東区"
+lat = 35.71456
+lon = 139.79664
+category = "shrine"
+note = "浅草的古寺，雷门的大红灯笼、仲见世和五重塔。"
+checked = 2026-10-31
+
+[[places]]
+id = "nezu-shrine"
+name = "根津神社"
+area = "文京区"
+lat = 35.72023
+lon = 139.76072
+category = "shrine"
+note = "根津的神社，有朱红的千本鸟居，春天开杜鹃。"
+checked = 2026-10-31
+
+[[places]]
+id = "yushima-tenmangu"
+name = "湯島天満宮"
+area = "文京区"
+lat = 35.70777
+lon = 139.76823
+category = "shrine"
+note = "汤岛的天满宫，供学问之神，挂满绘马，早春开梅花。"
+checked = 2026-10-31
+
+[[places]]
+id = "kanda-myojin"
+name = "神田明神"
+area = "千代田区"
+lat = 35.70194
+lon = 139.76778
+category = "shrine"
+note = "秋叶原附近的神社，朱红的楼门，常和动漫合作。"
+checked = 2026-10-31
+
+[[places]]
+id = "zojoji"
+name = "増上寺"
+area = "港区"
+lat = 35.65748
+lon = 139.74838
+category = "shrine"
+note = "东京塔旁的大寺，红色的三门后面就是东京塔。"
+checked = 2026-10-31
+
+[[places]]
+id = "hie-jinja"
+name = "日枝神社"
+area = "千代田区"
+lat = 35.67472
+lon = 139.73958
+category = "shrine"
+note = "赤坂的神社，有朱红的鸟居隧道和电动扶梯。"
+checked = 2026-10-31
+
+[[places]]
+id = "tokyo-daijingu"
+name = "東京大神宮"
+area = "千代田区"
+lat = 35.69998
+lon = 139.74687
+category = "shrine"
+note = "饭田桥的神社，求姻缘的人很多，有可爱的护身符。"
+checked = 2026-10-31
+
+[[places]]
+id = "akasaka-hikawa"
+name = "赤坂氷川神社"
+area = "港区"
+lat = 35.66821
+lon = 139.73556
+category = "shrine"
+note = "赤坂的安静神社，老树和古朴的社殿。"
+checked = 2026-10-31
+
+[[places]]
+id = "nogi-jinja"
+name = "乃木神社"
+area = "港区"
+lat = 35.66889
+lon = 139.72806
+category = "shrine"
+note = "乃木坂的小神社，旁边是乃木大将的旧居。"
+checked = 2026-10-31
+
+[[places]]
+id = "gotokuji"
+name = "豪徳寺"
+area = "世田谷区"
+lat = 35.64877
+lon = 139.64742
+category = "shrine"
+note = "世田谷的寺，供着成千上万的招财猫。"
+checked = 2026-10-31
+
+[[places]]
+id = "shibamata-taishakuten"
+name = "柴又帝釈天"
+area = "葛飾区"
+lat = 35.7584
+lon = 139.8782
+category = "shrine"
+note = "柴又的寺，木雕很精美，门前是老参道。"
+checked = 2026-10-31
+
+[[places]]
+id = "jindaiji"
+name = "深大寺"
+area = "調布市"
+lat = 35.66752
+lon = 139.55047
+category = "shrine"
+note = "调布的古寺，周围是森林、涌水和荞麦面店。"
+checked = 2026-10-31
+
+[[places]]
+id = "takahata-fudoson"
+name = "高幡不動尊"
+area = "日野市"
+lat = 35.66225
+lon = 139.40974
+category = "shrine"
+note = "日野的寺，有五重塔，山上开满绣球花。"
+checked = 2026-10-31
+
+[[places]]
+id = "gokokuji"
+name = "護国寺"
+area = "文京区"
+lat = 35.72167
+lon = 139.72556
+category = "shrine"
+note = "文京区的大寺，古老的本堂和宽阔的院子。"
+checked = 2026-10-31
+
+[[places]]
+id = "ueno-toshogu"
+name = "上野東照宮"
+area = "台東区"
+lat = 35.71536
+lon = 139.77058
+category = "shrine"
+note = "上野公园里的金色社殿，参道两边是石灯笼。"
+checked = 2026-10-31
+
+[[places]]
+id = "tomioka-hachimangu"
+name = "富岡八幡宮"
+area = "江東区"
+lat = 35.67175
+lon = 139.79958
+category = "shrine"
+note = "门前仲町的神社，有金色的神轿。"
+checked = 2026-10-31
+
+[[places]]
+id = "kameido-tenjin"
+name = "亀戸天神社"
+area = "江東区"
+lat = 35.70278
+lon = 139.82083
+category = "shrine"
+note = "龟户的天神社，有太鼓桥，春天紫藤开满池边，能看到晴空塔。"
+checked = 2026-10-31
+
+[[places]]
+id = "asakusa-jinja"
+name = "浅草神社"
+area = "台東区"
+lat = 35.71514
+lon = 139.79744
+category = "shrine"
+note = "浅草寺旁边的神社，三社祭的那座。"
+checked = 2026-10-31
+
+[[places]]
+id = "imado-jinja"
+name = "今戸神社"
+area = "台東区"
+lat = 35.71931
+lon = 139.80353
+category = "shrine"
+note = "浅草北边的小神社，招财猫和求姻缘。"
+checked = 2026-10-31
+
+[[places]]
+id = "tsukiji-hongwanji"
+name = "築地本願寺"
+area = "中央区"
+lat = 35.66639
+lon = 139.77222
+category = "shrine"
+note = "筑地的寺，印度风的石头本堂，里面有管风琴和咖啡馆。"
+checked = 2026-10-31
+
+[[places]]
+id = "sengakuji"
+name = "泉岳寺"
+area = "港区"
+lat = 35.63773
+lon = 139.73628
+category = "shrine"
+note = "高轮的寺，有赤穗四十七义士的墓。"
+checked = 2026-10-31
+
+[[places]]
+id = "okunitama-jinja"
+name = "大國魂神社"
+area = "府中市"
+lat = 35.66733
+lon = 139.479
+category = "shrine"
+note = "府中的大神社，参道是长长的榉树道。"
+checked = 2026-10-31
+
+[[places]]
+id = "yaho-tenmangu"
+name = "谷保天満宮"
+area = "国立市"
+lat = 35.6802
+lon = 139.444
+category = "shrine"
+note = "国立的天满宫，有梅林，院子里散养着鸡。"
+checked = 2026-10-31
+
+[[places]]
+id = "anahachimangu"
+name = "穴八幡宮"
+area = "新宿区"
+lat = 35.70722
+lon = 139.71736
+category = "shrine"
+note = "早稻田的神社，冬至时求“一阳来复”护符。"
+checked = 2026-10-31
+
+[[places]]
+id = "kishimojin"
+name = "雑司ヶ谷鬼子母神"
+area = "豊島区"
+lat = 35.72201
+lon = 139.71371
+category = "shrine"
+note = "杂司谷的小寺，有老银杏树和点心铺。"
+checked = 2026-10-31
+
+[[places]]
+id = "nishiarai-daishi"
+name = "西新井大師"
+area = "足立区"
+lat = 35.78014
+lon = 139.78
+category = "shrine"
+note = "足立区的大寺，门前有卖草团子的老店。"
+checked = 2026-10-31
+
+[[places]]
+id = "ikegami-honmonji"
+name = "池上本門寺"
+area = "大田区"
+lat = 35.57889
+lon = 139.70528
+category = "shrine"
+note = "大田区坡上的寺，有五重塔和长长的石阶。"
+checked = 2026-10-31
+
+[[places]]
+id = "kuhonbutsu"
+name = "九品仏浄真寺"
+area = "世田谷区"
+lat = 35.60817
+lon = 139.66088
+category = "shrine"
+note = "世田谷的寺，有九尊阿弥陀佛，秋天银杏和红叶很美。"
+checked = 2026-10-31
+
+[[places]]
+id = "shoin-jinja"
+name = "松陰神社"
+area = "世田谷区"
+lat = 35.64718
+lon = 139.65612
+category = "shrine"
+note = "世田谷的神社，祭祀吉田松阴，门前有小商店街。"
+checked = 2026-10-31
+
+[[places]]
+id = "yoyogi-hachimangu"
+name = "代々木八幡宮"
+area = "渋谷区"
+lat = 35.67192
+lon = 139.68892
+category = "shrine"
+note = "代代木的林中神社，有绳文时代的竖穴住居复原。"
+checked = 2026-10-31
+
+[[places]]
+id = "hanazono-jinja"
+name = "花園神社"
+area = "新宿区"
+lat = 35.69355
+lon = 139.70518
+category = "shrine"
+note = "新宿三丁目的神社，周日有古董市。"
+checked = 2026-10-31
+
+[[places]]
+id = "shinagawa-jinja"
+name = "品川神社"
+area = "品川区"
+lat = 35.61847
+lon = 139.73964
+category = "shrine"
+note = "品川的神社，有长石阶和小富士山。"
+checked = 2026-10-31
+
+[[places]]
+id = "omiya-hachimangu"
+name = "大宮八幡宮"
+area = "杉並区"
+lat = 35.68238
+lon = 139.63966
+category = "shrine"
+note = "杉并的神社，被大片树林围着。"
+checked = 2026-10-31
+
+[[places]]
+id = "asagaya-shinmeigu"
+name = "阿佐谷神明宮"
+area = "杉並区"
+lat = 35.70734
+lon = 139.637
+category = "shrine"
+note = "阿佐谷的神社，夏天挂风铃，有好看的织物御守。"
+checked = 2026-10-31
+
+[[places]]
+id = "suga-jinja"
+name = "須賀神社"
+area = "新宿区"
+lat = 35.68531
+lon = 139.72244
+category = "shrine"
+note = "四谷的神社，门前的长石阶。"
+checked = 2026-10-31
+
+[[places]]
+id = "yakuoin"
+name = "高尾山薬王院"
+area = "八王子市"
+lat = 35.62586
+lon = 139.25023
+category = "shrine"
+note = "高尾山半山腰的寺，有天狗像和杉树。"
+checked = 2026-10-31
+
+[[places]]
+id = "musashi-mitake-jinja"
+name = "武蔵御嶽神社"
+area = "青梅市"
+lat = 35.78283
+lon = 139.15
+category = "shrine"
+note = "御岳山顶的神社，可以带狗参拜。"
+checked = 2026-10-31
+
+[[places]]
+id = "tsurugaoka-hachimangu"
+name = "鶴岡八幡宮"
+area = "神奈川県鎌倉市"
+lat = 35.32608
+lon = 139.55642
+category = "shrine"
+note = "镰仓的大神社，从若宫大路一直走上去，有大石阶。"
+checked = 2026-10-31
+
+[[places]]
+id = "kotokuin"
+name = "高徳院"
+area = "神奈川県鎌倉市"
+lat = 35.31686
+lon = 139.53572
+category = "shrine"
+note = "镰仓大佛所在的寺，露天的青铜大佛。"
+checked = 2026-10-31
+
+[[places]]
+id = "meigetsuin"
+name = "明月院"
+area = "神奈川県鎌倉市"
+lat = 35.33486
+lon = 139.55139
+category = "shrine"
+note = "镰仓北的寺，初夏开满绣球花，有圆窗。"
+checked = 2026-10-31
+
+[[places]]
+id = "hokokuji"
+name = "報国寺"
+area = "神奈川県鎌倉市"
+lat = 35.32
+lon = 139.5693
+category = "shrine"
+note = "镰仓的寺，后院是竹林，可以喝抹茶。"
+checked = 2026-10-31
+
+[[places]]
+id = "engakuji"
+name = "円覚寺"
+area = "神奈川県鎌倉市"
+lat = 35.3377
+lon = 139.5475
+category = "shrine"
+note = "北镰仓站旁的大禅寺，有山门和古老的杉树。"
+checked = 2026-10-31
+
+[[places]]
+id = "zeniarai-benten"
+name = "銭洗弁財天宇賀福神社"
+area = "神奈川県鎌倉市"
+lat = 35.32551
+lon = 139.54274
+category = "shrine"
+note = "镰仓山里的神社，穿过岩洞，在泉水里洗钱。"
+checked = 2026-10-31
+
+[[places]]
+id = "enoshima-jinja"
+name = "江島神社"
+area = "神奈川県藤沢市"
+lat = 35.30036
+lon = 139.47961
+category = "shrine"
+note = "江之岛的神社，从青铜鸟居一路走上去，有好几座社殿。"
+checked = 2026-10-31
+
+[[places]]
+id = "kawagoe-hikawa"
+name = "川越氷川神社"
+area = "埼玉県川越市"
+lat = 35.92759
+lon = 139.48853
+category = "shrine"
+note = "川越的神社，求姻缘，夏天挂满风铃。"
+checked = 2026-10-31
+
+[[places]]
+id = "kitain"
+name = "喜多院"
+area = "埼玉県川越市"
+lat = 35.91752
+lon = 139.48907
+category = "shrine"
+note = "川越的寺，有五百罗汉。"
+checked = 2026-10-31
+
+[[places]]
+id = "hakusan-jinja-bunkyo"
+name = "白山神社"
+area = "文京区"
+lat = 35.72208
+lon = 139.75053
+category = "shrine"
+note = "文京区白山的神社，初夏开满绣球花。"
+checked = 2026-10-31
+
+[[places]]
+id = "togoshi-ginza"
+name = "戸越銀座商店街"
+area = "品川区"
+lat = 35.61533
+lon = 139.71656
+category = "shopping-street"
+note = "品川区很长的商店街，卖可乐饼和熟食的小店一路排开。"
+checked = 2026-10-31
+
+[[places]]
+id = "sunamachi-ginza"
+name = "砂町銀座商店街"
+area = "江東区"
+lat = 35.67963
+lon = 139.83064
+category = "shopping-street"
+note = "江东区的下町商店街，熟食店多，傍晚很热闹。"
+checked = 2026-10-31
+
+[[places]]
+id = "jujo-ginza"
+name = "十条銀座商店街"
+area = "北区"
+lat = 35.76249
+lon = 139.72135
+category = "shopping-street"
+note = "北区十条的拱廊商店街，卖熟食和日用品。"
+checked = 2026-10-31
+
+[[places]]
+id = "musashikoyama-palm"
+name = "武蔵小山商店街PALM"
+area = "品川区"
+lat = 35.61824
+lon = 139.70607
+category = "shopping-street"
+note = "武藏小山的长拱廊商店街。"
+checked = 2026-10-31
+
+[[places]]
+id = "nakano-sun-mall"
+name = "中野サンモール"
+area = "中野区"
+lat = 35.70749
+lon = 139.66569
+category = "shopping-street"
+note = "中野站北口的拱廊商店街，尽头是中野百老汇。"
+checked = 2026-10-31
+
+[[places]]
+id = "koenji-pal"
+name = "高円寺パル商店街"
+area = "杉並区"
+lat = 35.70456
+lon = 139.64905
+category = "shopping-street"
+note = "高圆寺站南口的拱廊商店街，有古着店和小吃店。"
+checked = 2026-10-31
+
+[[places]]
+id = "koenji-junjo"
+name = "高円寺純情商店街"
+area = "杉並区"
+lat = 35.70736
+lon = 139.6502
+category = "shopping-street"
+note = "高圆寺站北口的商店街，有老点心铺和小餐馆。"
+checked = 2026-10-31
+
+[[places]]
+id = "asagaya-pearl-center"
+name = "阿佐ヶ谷パールセンター"
+area = "杉並区"
+lat = 35.69943
+lon = 139.63728
+category = "shopping-street"
+note = "阿佐谷站南的拱廊商店街，夏天有七夕祭。"
+checked = 2026-10-31
+
+[[places]]
+id = "sugamo-jizo-dori"
+name = "巣鴨地蔵通り商店街"
+area = "豊島区"
+lat = 35.7388
+lon = 139.73062
+category = "shopping-street"
+note = "巢鸭的商店街，号称“老奶奶的原宿”，有红内衣店和盐大福。"
+checked = 2026-10-31
+
+[[places]]
+id = "kichijoji-sun-road"
+name = "吉祥寺サンロード商店街"
+area = "武蔵野市"
+lat = 35.70513
+lon = 139.58055
+category = "shopping-street"
+note = "吉祥寺站北口的拱廊商店街。"
+checked = 2026-10-31
+
+[[places]]
+id = "ameyoko"
+name = "アメ横通り"
+area = "台東区"
+lat = 35.70964
+lon = 139.77465
+category = "shopping-street"
+note = "上野到御徒町铁道下的商店街，叫卖声，卖海鲜、零食和干货。"
+checked = 2026-10-31
+
+[[places]]
+id = "kappabashi"
+name = "かっぱ橋道具街通り"
+area = "台東区"
+lat = 35.71448
+lon = 139.78885
+category = "shopping-street"
+note = "浅草附近的厨具街，有很多食物模型店。"
+checked = 2026-10-31
+
+[[places]]
+id = "tsukiji-outer-market"
+name = "築地場外市場"
+area = "中央区"
+lat = 35.66139
+lon = 139.76972
+category = "shopping-street"
+note = "筑地的场外市场，海鲜、玉子烧和小吃摊。"
+checked = 2026-10-31
+
+[[places]]
+id = "tsukishima-monja-street"
+name = "月島もんじゃストリート"
+area = "中央区"
+lat = 35.66428
+lon = 139.78246
+category = "shopping-street"
+note = "月岛的文字烧一条街。"
+checked = 2026-10-31
+
+[[places]]
+id = "shibamata-sando"
+name = "帝釈天参道"
+area = "葛飾区"
+lat = 35.75803
+lon = 139.87716
+category = "shopping-street"
+note = "柴又帝释天前的参道，卖草团子和仙贝的老店。"
+checked = 2026-10-31
+
+[[places]]
+id = "amazake-yokocho"
+name = "甘酒横丁"
+area = "中央区"
+lat = 35.68618
+lon = 139.78521
+category = "shopping-street"
+note = "人形町的老商店街，豆腐店、鲷鱼烧和老点心铺。"
+checked = 2026-10-31
+
+[[places]]
+id = "kagurazaka"
+name = "神楽坂通り"
+area = "新宿区"
+lat = 35.70204
+lon = 139.73857
+category = "shopping-street"
+note = "神乐坂的坡道商店街，小巷里是石板路和料亭。"
+checked = 2026-10-31
+
+[[places]]
+id = "shin-nakamise"
+name = "新仲見世"
+area = "台東区"
+lat = 35.71194
+lon = 139.79583
+category = "shopping-street"
+note = "浅草的拱廊商店街，和仲见世交叉。"
+checked = 2026-10-31
+
+[[places]]
+id = "nakanobu-skip-road"
+name = "中延スキップロード"
+area = "品川区"
+lat = 35.60779
+lon = 139.71217
+category = "shopping-street"
+note = "中延的拱廊商店街。"
+checked = 2026-10-31
+
+[[places]]
+id = "torigoe-okazu-yokocho"
+name = "おかず横丁"
+area = "台東区"
+lat = 35.70251
+lon = 139.78257
+category = "shopping-street"
+note = "台东区鸟越的小熟食横丁。"
+checked = 2026-10-31
+
+[[places]]
+id = "yokohama-chinatown"
+name = "横浜中華街"
+area = "神奈川県横浜市中区"
+lat = 35.4428
+lon = 139.646
+category = "shopping-street"
+note = "横滨的中华街，彩色牌楼，路边卖肉包和小笼包。"
+checked = 2026-10-31
+
+[[places]]
+id = "kamakura-komachi-dori"
+name = "小町通り"
+area = "神奈川県鎌倉市"
+lat = 35.3204
+lon = 139.55178
+category = "shopping-street"
+note = "镰仓站到鹤冈八幡宫的商店街，点心和杂货店挤满两边。"
+checked = 2026-10-31
+
+[[places]]
+id = "kawagoe-ichibangai"
+name = "川越一番街商店街"
+area = "埼玉県川越市"
+lat = 35.92354
+lon = 139.48293
+category = "shopping-street"
+note = "川越的藏造老街，黑色的土藏店铺和时之钟。"
+checked = 2026-10-31
+
+[[places]]
+id = "rokkakubashi"
+name = "六角橋商店街"
+area = "神奈川県横浜市神奈川区"
+lat = 35.48696
+lon = 139.62573
+category = "shopping-street"
+note = "横滨六角桥的老商店街，窄窄的仲见世和小店。"
+checked = 2026-10-31
+
+[[places]]
+id = "yokohamabashi"
+name = "横浜橋通り商店街"
+area = "神奈川県横浜市南区"
+lat = 35.4368
+lon = 139.62836
+category = "shopping-street"
+note = "横滨南区的拱廊商店街，卖鱼、熟食和韩国小菜。"
+checked = 2026-10-31
+
+[[places]]
+id = "enoshima-nakamise"
+name = "江の島弁財天仲見世通り"
+area = "神奈川県藤沢市"
+lat = 35.30148
+lon = 139.48073
+category = "shopping-street"
+note = "江之岛青铜鸟居后的坡道，卖仙贝和海鲜。"
+checked = 2026-10-31
+
+[[places]]
+id = "takeshita-dori"
+name = "竹下通り"
+area = "渋谷区"
+lat = 35.67125
+lon = 139.70481
+category = "fashion-street"
+note = "原宿站前的窄街，可丽饼、杂货和偶像周边店，人挤人。"
+checked = 2026-10-31
+
+[[places]]
+id = "cat-street"
+name = "キャットストリート"
+area = "渋谷区"
+lat = 35.66618
+lon = 139.70569
+category = "fashion-street"
+note = "原宿到涩谷的步行小路，两边是服装店和咖啡馆。"
+checked = 2026-10-31
+
+[[places]]
+id = "daikanyama"
+name = "代官山"
+area = "渋谷区"
+lat = 35.65072
+lon = 139.70494
+category = "fashion-street"
+note = "代官山一带，安静的坡道上是精品店和咖啡馆。"
+checked = 2026-10-31
+
+[[places]]
+id = "jiyugaoka"
+name = "自由が丘"
+area = "目黒区"
+lat = 35.61145
+lon = 139.66758
+category = "fashion-street"
+note = "自由丘一带，杂货店和甜品店多，街道像欧洲小镇。"
+checked = 2026-10-31
+
+[[places]]
+id = "kuramae"
+name = "蔵前"
+area = "台東区"
+lat = 35.70262
+lon = 139.791
+category = "fashion-street"
+note = "藏前一带，旧仓库改的文具、皮具和咖啡小店。"
+checked = 2026-10-31
+
+[[places]]
+id = "nakamichi-dori"
+name = "中道通り"
+area = "武蔵野市"
+lat = 35.70478
+lon = 139.57404
+category = "fashion-street"
+note = "吉祥寺北边的小街，杂货店、古着店和面包店。"
+checked = 2026-10-31
+
+[[places]]
+id = "koen-dori"
+name = "渋谷公園通り"
+area = "渋谷区"
+lat = 35.66462
+lon = 139.69882
+category = "fashion-street"
+note = "涩谷从车站上到代代木公园的坡道，涩谷PARCO在中间。"
+checked = 2026-10-31
+
+[[places]]
+id = "marunouchi-naka-dori"
+name = "丸の内仲通り"
+area = "千代田区"
+lat = 35.68031
+lon = 139.76294
+category = "fashion-street"
+note = "丸之内办公楼间的石板路，行道树和名牌店，冬天挂满灯。"
+checked = 2026-10-31
+
+[[places]]
+id = "nakameguro"
+name = "中目黒"
+area = "目黒区"
+lat = 35.63915
+lon = 139.70276
+category = "fashion-street"
+note = "中目黑一带，目黑川两岸的服装店和咖啡馆。"
+checked = 2026-10-31
+
+[[places]]
+id = "yanaka"
+name = "谷中"
+area = "台東区"
+lat = 35.72379
+lon = 139.76842
+category = "fashion-street"
+note = "谷中一带，老房子里的杂货店、猫和小巷。"
+checked = 2026-10-31
+
+[[places]]
+id = "kamakura-onari-dori"
+name = "御成通り"
+area = "神奈川県鎌倉市"
+lat = 35.31794
+lon = 139.54969
+category = "fashion-street"
+note = "镰仓站西口的小街，杂货店、面包店和咖啡馆，比小町通安静。"
+checked = 2026-10-31
+
+[[places]]
+id = "kawagoe-taisho-roman"
+name = "大正浪漫夢通り"
+area = "埼玉県川越市"
+lat = 35.91951
+lon = 139.48359
+category = "fashion-street"
+note = "川越的复古小街，大正时代风格的店面，卖杂货和点心。"
+checked = 2026-10-31
+
+[[places]]
+id = "motomachi-naka-dori"
+name = "元町仲通り"
+area = "神奈川県横浜市中区"
+lat = 35.43977
+lon = 139.64787
+category = "fashion-street"
+note = "横滨元町大街后面一条的小路，精品店和咖啡馆藏在小楼里。"
+checked = 2026-10-31
+
+[[places]]
+id = "shimokita-ichibangai-hondori"
+name = "下北沢一番街"
+area = "世田谷区"
+lat = 35.66404
+lon = 139.66759
+category = "fashion-street"
+note = "下北泽北边的商店街，古着店和杂货店一家挨一家。"
+checked = 2026-10-31
+
+[[places]]
+id = "kinokuniya-shinjuku"
+name = "紀伊國屋書店 新宿本店"
+area = "新宿区"
+lat = 35.69235
+lon = 139.70308
+category = "books"
+note = "新宿的大书店，九层楼，一楼是新书和杂志。"
+checked = 2026-10-31
+
+[[places]]
+id = "maruzen-marunouchi"
+name = "丸善 丸の内本店"
+area = "千代田区"
+lat = 35.68332
+lon = 139.76675
+category = "books"
+note = "东京站前丸之内OAZO里的大书店，楼上有咖啡厅。"
+checked = 2026-10-31
+
+[[places]]
+id = "jimbocho-books"
+name = "神田古書店街"
+area = "千代田区"
+lat = 35.69586
+lon = 139.75861
+category = "books"
+note = "神保町一带的旧书店街，书架摆到店门外。"
+checked = 2026-10-31
+
+[[places]]
+id = "tokyodo-jimbocho"
+name = "東京堂書店"
+area = "千代田区"
+lat = 35.69518
+lon = 139.76001
+category = "books"
+note = "神保町的老书店，选书很用心，有咖啡角。"
+checked = 2026-10-31
+
+[[places]]
+id = "daikanyama-tsutaya"
+name = "代官山 蔦屋書店"
+area = "渋谷区"
+lat = 35.64895
+lon = 139.69949
+category = "books"
+note = "代官山的书店，三栋白楼用走廊连起来，有咖啡和杂志街。"
+checked = 2026-10-31
+
+[[places]]
+id = "aoyama-book-center"
+name = "青山ブックセンター本店"
+area = "渋谷区"
+lat = 35.66311
+lon = 139.70774
+category = "books"
+note = "表参道的书店，艺术和设计的书很全。"
+checked = 2026-10-31
+
+[[places]]
+id = "junkudo-ikebukuro"
+name = "ジュンク堂書店 池袋本店"
+area = "豊島区"
+lat = 35.72688
+lon = 139.71223
+category = "books"
+note = "池袋的大书店，书架高高的，有坐着读的椅子。"
+checked = 2026-10-31
+
+[[places]]
+id = "b-and-b"
+name = "本屋B&B"
+area = "世田谷区"
+lat = 35.65927
+lon = 139.66406
+category = "books"
+note = "下北泽的书店，卖啤酒，常办读书会。"
+checked = 2026-10-31
+
+[[places]]
+id = "ndl"
+name = "国立国会図書館 東京本館"
+area = "千代田区"
+lat = 35.67842
+lon = 139.74456
+category = "books"
+note = "永田町的国立图书馆，大理石的楼。"
+checked = 2026-10-31
+
+[[places]]
+id = "tokyo-metropolitan-library"
+name = "東京都立中央図書館"
+area = "港区"
+lat = 35.65215
+lon = 139.72651
+category = "books"
+note = "有栖川宫公园里的都立图书馆。"
+checked = 2026-10-31
+
+[[places]]
+id = "musashino-place"
+name = "武蔵野プレイス"
+area = "武蔵野市"
+lat = 35.70107
+lon = 139.54368
+category = "books"
+note = "武藏境站前的图书馆，白色的楼，圆圆的窗洞。"
+checked = 2026-10-31
+
+[[places]]
+id = "kadokawa-musashino-museum"
+name = "角川武蔵野ミュージアム"
+area = "埼玉県所沢市"
+lat = 35.79769
+lon = 139.50787
+category = "books"
+note = "所泽的大石头一样的楼，里面有高高的书架墙。"
+checked = 2026-10-31
+
+[[places]]
+id = "yokohama-central-library"
+name = "横浜市中央図書館"
+area = "神奈川県横浜市西区"
+lat = 35.44746
+lon = 139.62643
+category = "books"
+note = "横滨野毛山下的市立图书馆。"
+checked = 2026-10-31
+
+[[places]]
+id = "hibiya-library"
+name = "千代田区立日比谷図書文化館"
+area = "千代田区"
+lat = 35.67195
+lon = 139.75464
+category = "books"
+note = "日比谷公园里的图书馆，三角形的楼。"
+checked = 2026-10-31
+
+[[places]]
+id = "kanagawa-library"
+name = "神奈川県立図書館"
+area = "神奈川県横浜市西区"
+lat = 35.45131
+lon = 139.62547
+category = "books"
+note = "横滨红叶坂的县立图书馆。"
+checked = 2026-10-31
+
+[[places]]
+id = "futakotamagawa-tsutaya"
+name = "二子玉川 蔦屋家電"
+area = "世田谷区"
+lat = 35.61123
+lon = 139.62926
+category = "books"
+note = "二子玉川的书店兼家电店，挑高的书架。"
+checked = 2026-10-31
+
+[[places]]
+id = "animate-ikebukuro"
+name = "アニメイト池袋本店"
+area = "豊島区"
+lat = 35.73115
+lon = 139.71545
+category = "books"
+note = "池袋的大动漫店，整栋楼都是漫画和周边。"
+checked = 2026-10-31
+
+[[places]]
+id = "shosen-book-tower"
+name = "書泉ブックタワー"
+area = "千代田区"
+lat = 35.69736
+lon = 139.77519
+category = "books"
+note = "秋叶原站旁的九层书店，铁道和动漫的书很多。"
+checked = 2026-10-31
+
+[[places]]
+id = "shibuya-hikarie"
+name = "渋谷ヒカリエ"
+area = "渋谷区"
+lat = 35.6589
+lon = 139.703
+category = "mall"
+note = "涩谷站东口的高楼，有商场、剧场和展望的窗。"
+checked = 2026-10-31
+
+[[places]]
+id = "shibuya-parco"
+name = "渋谷PARCO"
+area = "渋谷区"
+lat = 35.66199
+lon = 139.69895
+category = "mall"
+note = "涩谷公园通上的商场，有任天堂、宝可梦店和屋顶。"
+checked = 2026-10-31
+
+[[places]]
+id = "lumine-shinjuku"
+name = "ルミネエスト新宿"
+area = "新宿区"
+lat = 35.6912
+lon = 139.70113
+category = "mall"
+note = "新宿站东口上面的车站大楼，年轻人的服装店多。"
+checked = 2026-10-31
+
+[[places]]
+id = "sunshine-city"
+name = "サンシャインシティ"
+area = "豊島区"
+lat = 35.72917
+lon = 139.71806
+category = "mall"
+note = "池袋的大型商业设施，有水族馆、展望台和宝可梦中心。"
+checked = 2026-10-31
+
+[[places]]
+id = "tokyo-solamachi"
+name = "東京ソラマチ"
+area = "墨田区"
+lat = 35.71033
+lon = 139.81222
+category = "mall"
+note = "晴空塔脚下的商场，有好多小店和点心。"
+checked = 2026-10-31
+
+[[places]]
+id = "roppongi-hills"
+name = "六本木ヒルズ"
+area = "港区"
+lat = 35.66
+lon = 139.73
+category = "mall"
+note = "六本木的高楼群，有森大楼、商场、电影院和巨型蜘蛛雕塑。"
+checked = 2026-10-31
+
+[[places]]
+id = "tokyo-midtown"
+name = "東京ミッドタウン"
+area = "港区"
+lat = 35.66583
+lon = 139.73111
+category = "mall"
+note = "六本木的高楼和商场，后面连着草坪公园。"
+checked = 2026-10-31
+
+[[places]]
+id = "kitte-marunouchi"
+name = "KITTE丸の内"
+area = "千代田区"
+lat = 35.67986
+lon = 139.76478
+category = "mall"
+note = "东京站对面旧邮局改的商场，屋顶花园能看车站。"
+checked = 2026-10-31
+
+[[places]]
+id = "ginza-six"
+name = "GINZA SIX"
+area = "中央区"
+lat = 35.66957
+lon = 139.76408
+category = "mall"
+note = "银座的大商场，挑空的中庭挂着艺术装置，屋顶有花园。"
+checked = 2026-10-31
+
+[[places]]
+id = "lalaport-toyosu"
+name = "アーバンドック ららぽーと豊洲"
+area = "江東区"
+lat = 35.65583
+lon = 139.79194
+category = "mall"
+note = "丰洲的海边商场，能看到运河和老起重机。"
+checked = 2026-10-31
+
+[[places]]
+id = "diver-city"
+name = "ダイバーシティ東京"
+area = "江東区"
+lat = 35.62517
+lon = 139.77536
+category = "mall"
+note = "台场的商场，门口站着巨大的高达。"
+checked = 2026-10-31
+
+[[places]]
+id = "red-brick-warehouse"
+name = "横浜赤レンガ倉庫"
+area = "神奈川県横浜市中区"
+lat = 35.4522
+lon = 139.643
+category = "mall"
+note = "横滨港边的红砖仓库，里面是小店和餐厅，冬天有圣诞市集。"
+checked = 2026-10-31
+
+[[places]]
+id = "mark-is-minatomirai"
+name = "MARK IS みなとみらい"
+area = "神奈川県横浜市西区"
+lat = 35.45753
+lon = 139.63175
+category = "mall"
+note = "港未来的商场，楼顶是菜园和庭院。"
+checked = 2026-10-31
+
+[[places]]
+id = "shinjuku-wald9"
+name = "新宿バルト9"
+area = "新宿区"
+lat = 35.69012
+lon = 139.70591
+category = "mall"
+note = "新宿三丁目的电影院，九块银幕。"
+checked = 2026-10-31
+
+[[places]]
+id = "lazona-kawasaki"
+name = "ラゾーナ川崎プラザ"
+area = "神奈川県川崎市幸区"
+lat = 35.53333
+lon = 139.69583
+category = "mall"
+note = "川崎站西口的大商场，中间有圆形广场。"
+checked = 2026-10-31
+
+[[places]]
+id = "tokyo-midtown-hibiya"
+name = "東京ミッドタウン日比谷"
+area = "千代田区"
+lat = 35.67372
+lon = 139.75925
+category = "mall"
+note = "日比谷的商场，六楼的空中庭园能看皇居和日比谷公园。"
+checked = 2026-10-31
+
+[[places]]
+id = "nakano-broadway"
+name = "中野ブロードウェイ"
+area = "中野区"
+lat = 35.70917
+lon = 139.66556
+category = "mall"
+note = "中野的老商场，漫画、手办和旧货小店挤满几层楼。"
+checked = 2026-10-31
+
+[[places]]
+id = "ikebukuro-otome-road"
+name = "乙女ロード"
+area = "豊島区"
+lat = 35.73061
+lon = 139.71822
+category = "fashion-street"
+note = "池袋阳光城旁的街，动漫周边和同人志的店一家挨一家。"
+checked = 2026-10-31
+
+[[places]]
+id = "yodobashi-akiba"
+name = "ヨドバシカメラ マルチメディアAkiba"
+area = "千代田区"
+lat = 35.69889
+lon = 139.77472
+category = "mall"
+note = "秋叶原站东口的大家电店，整栋楼。"
+checked = 2026-10-31
+
+[[places]]
+id = "grandstation-tokyo"
+name = "グランスタ東京"
+area = "千代田区"
+lat = 35.68119
+lon = 139.76875
+category = "mall"
+note = "东京站检票口里的商场，便当和伴手礼。"
+checked = 2026-10-31
+
+[[places]]
+id = "kasai-rinkai-park"
+name = "葛西臨海公園"
+area = "江戸川区"
+lat = 35.64286
+lon = 139.86257
+category = "seaside"
+note = "东京湾边的大公园，有摩天轮、水族园和人工沙滩。"
+checked = 2026-10-31
+
+[[places]]
+id = "wakasu-seaside-park"
+name = "若洲海浜公園"
+area = "江東区"
+lat = 35.62228
+lon = 139.83722
+category = "seaside"
+note = "江东区的海边公园，有风车和东京门大桥。"
+checked = 2026-10-31
+
+[[places]]
+id = "jonanjima-seaside-park"
+name = "城南島海浜公園"
+area = "大田区"
+lat = 35.57819
+lon = 139.78336
+category = "seaside"
+note = "大田区的海边公园，羽田的飞机从头顶飞过。"
+checked = 2026-10-31
+
+[[places]]
+id = "toyosu-gururi-park"
+name = "豊洲ぐるり公園"
+area = "江東区"
+lat = 35.64517
+lon = 139.78505
+category = "seaside"
+note = "丰洲的海边步道，对岸是晴海和彩虹桥。"
+checked = 2026-10-31
+
+[[places]]
+id = "takeshiba-pier"
+name = "竹芝桟橋"
+area = "港区"
+lat = 35.6534
+lon = 139.76342
+category = "seaside"
+note = "竹芝的码头，去伊豆诸岛的船从这里出发，旁边是海边步道。"
+checked = 2026-10-31
+
+[[places]]
+id = "hinode-pier"
+name = "日の出桟橋"
+area = "港区"
+lat = 35.65138
+lon = 139.76062
+category = "seaside"
+note = "日出的码头，坐水上巴士去浅草和台场。"
+checked = 2026-10-31
+
+[[places]]
+id = "oi-futo-seaside-park"
+name = "大井ふ頭中央海浜公園"
+area = "大田区"
+lat = 35.58898
+lon = 139.75008
+category = "seaside"
+note = "品川区的海边公园，有野鸟和小沙滩。"
+checked = 2026-10-31
+
+[[places]]
+id = "shiokaze-park"
+name = "潮風公園"
+area = "品川区"
+lat = 35.62389
+lon = 139.76889
+category = "seaside"
+note = "台场的海边公园，能看到彩虹桥。"
+checked = 2026-10-31
+
+[[places]]
+id = "enoshima"
+name = "江の島"
+area = "神奈川県藤沢市"
+lat = 35.29933
+lon = 139.48091
+category = "seaside"
+note = "湘南的小岛，青铜鸟居、长桥、灯塔和海蚀洞。"
+checked = 2026-10-31
+
+[[places]]
+id = "katase-nishihama"
+name = "片瀬西浜・鵠沼海水浴場"
+area = "神奈川県藤沢市"
+lat = 35.31056
+lon = 139.47806
+category = "seaside"
+note = "江之岛西边的沙滩，夏天是海水浴场，冲浪的人多。"
+checked = 2026-10-31
+
+[[places]]
+id = "yuigahama"
+name = "由比ヶ浜"
+area = "神奈川県鎌倉市"
+lat = 35.31332
+lon = 139.54553
+category = "seaside"
+note = "镰仓的沙滩，夏天有海之家。"
+checked = 2026-10-31
+
+[[places]]
+id = "inamuragasaki"
+name = "稲村ヶ崎"
+area = "神奈川県鎌倉市"
+lat = 35.30444
+lon = 139.52222
+category = "seaside"
+note = "镰仓的海岬，能看到江之岛和富士山，傍晚的夕阳很好。"
+checked = 2026-10-31
+
+[[places]]
+id = "zaimokuza"
+name = "材木座海岸"
+area = "神奈川県鎌倉市"
+lat = 35.30624
+lon = 139.54861
+category = "seaside"
+note = "镰仓的沙滩，比由比滨安静。"
+checked = 2026-10-31
+
+[[places]]
+id = "osanbashi"
+name = "大さん橋"
+area = "神奈川県横浜市中区"
+lat = 35.4517
+lon = 139.648
+category = "seaside"
+note = "横滨的客船码头，屋顶是木头的起伏地面，能看港口夜景。"
+checked = 2026-10-31
+
+[[places]]
+id = "rinko-park"
+name = "臨港パーク"
+area = "神奈川県横浜市西区"
+lat = 35.46146
+lon = 139.63707
+category = "seaside"
+note = "港未来的海边草坪公园，能看到海湾大桥。"
+checked = 2026-10-31
+
+[[places]]
+id = "makuhari-beach"
+name = "幕張の浜"
+area = "千葉県千葉市美浜区"
+lat = 35.6391
+lon = 140.03507
+category = "seaside"
+note = "幕张的海滩，背后是高楼和球场。"
+checked = 2026-10-31
+
+[[places]]
+id = "uminokoen"
+name = "海の公園"
+area = "神奈川県横浜市金沢区"
+lat = 35.3395
+lon = 139.63514
+category = "seaside"
+note = "横滨金泽区的人工沙滩，春天能赶海挖蛤蜊。"
+checked = 2026-10-31
+
+[[places]]
+id = "kemigawa-beach"
+name = "検見川の浜"
+area = "千葉県千葉市美浜区"
+lat = 35.62545
+lon = 140.05179
+category = "seaside"
+note = "千叶的海滩，有长长的突堤。"
+checked = 2026-10-31
+
+[[places]]
+id = "ueno-zoo"
+name = "恩賜上野動物園"
+area = "台東区"
+lat = 35.7175
+lon = 139.77139
+category = "amusement"
+note = "上野公园里的动物园，有大熊猫。"
+checked = 2026-10-31
+
+[[places]]
+id = "tama-zoo"
+name = "多摩動物公園"
+area = "日野市"
+lat = 35.651
+lon = 139.402
+category = "amusement"
+note = "日野的山坡动物园，有长颈鹿和昆虫生态园。"
+checked = 2026-10-31
+
+[[places]]
+id = "inokashira-zoo"
+name = "井の頭自然文化園"
+area = "武蔵野市"
+lat = 35.70083
+lon = 139.57275
+category = "amusement"
+note = "吉祥寺的小动物园，有日本的动物和水鸟。"
+checked = 2026-10-31
+
+[[places]]
+id = "kasai-aquarium"
+name = "葛西臨海水族園"
+area = "江戸川区"
+lat = 35.64008
+lon = 139.86217
+category = "amusement"
+note = "葛西临海公园里的水族馆，玻璃穹顶，金枪鱼群游。"
+checked = 2026-10-31
+
+[[places]]
+id = "sumida-aquarium"
+name = "すみだ水族館"
+area = "墨田区"
+lat = 35.70989
+lon = 139.80986
+category = "amusement"
+note = "晴空塔里的水族馆，有企鹅和金鱼。"
+checked = 2026-10-31
+
+[[places]]
+id = "maxell-aqua-park"
+name = "マクセル アクアパーク品川"
+area = "港区"
+lat = 35.62839
+lon = 139.73575
+category = "amusement"
+note = "品川站前的水族馆，有海豚秀和灯光。"
+checked = 2026-10-31
+
+[[places]]
+id = "edogawa-zoo"
+name = "江戸川区自然動物園"
+area = "江戸川区"
+lat = 35.671
+lon = 139.8584
+category = "amusement"
+note = "江户川区的小动物园，免费，能摸豚鼠。"
+checked = 2026-10-31
+
+[[places]]
+id = "yomiuriland"
+name = "よみうりランド"
+area = "神奈川県川崎市多摩区"
+lat = 35.6258
+lon = 139.519
+category = "amusement"
+note = "稻城的游乐园，山上有过山车和摩天轮，冬天有灯光秀。"
+checked = 2026-10-31
+
+[[places]]
+id = "tokyo-dome-city-attractions"
+name = "東京ドームシティアトラクションズ"
+area = "文京区"
+lat = 35.7053
+lon = 139.754
+category = "amusement"
+note = "东京巨蛋旁的游乐园，过山车穿过大楼。"
+checked = 2026-10-31
+
+[[places]]
+id = "hanayashiki"
+name = "浅草花やしき"
+area = "台東区"
+lat = 35.7155
+lon = 139.79469
+category = "amusement"
+note = "浅草的老游乐园，小小的过山车在民房间穿行。"
+checked = 2026-10-31
+
+[[places]]
+id = "summerland"
+name = "東京サマーランド"
+area = "あきる野市"
+lat = 35.71742
+lon = 139.27739
+category = "amusement"
+note = "秋留野的大型泳池游乐园。"
+checked = 2026-10-31
+seasons = ["summer"]
+
+[[places]]
+id = "sanrio-puroland"
+name = "サンリオピューロランド"
+area = "多摩市"
+lat = 35.62444
+lon = 139.42917
+category = "amusement"
+note = "多摩中心的室内主题乐园，有凯蒂猫。"
+checked = 2026-10-31
+
+[[places]]
+id = "joypolis"
+name = "東京ジョイポリス"
+area = "港区"
+lat = 35.62851
+lon = 139.77516
+category = "amusement"
+note = "台场的室内游乐园。"
+checked = 2026-10-31
+
+[[places]]
+id = "zoorasia"
+name = "よこはま動物園ズーラシア"
+area = "神奈川県横浜市旭区"
+lat = 35.49532
+lon = 139.52375
+category = "amusement"
+note = "横滨的大动物园，有霍加狓。"
+checked = 2026-10-31
+
+[[places]]
+id = "hakkeijima"
+name = "横浜・八景島シーパラダイス"
+area = "神奈川県横浜市金沢区"
+lat = 35.33744
+lon = 139.64733
+category = "amusement"
+note = "横滨八景岛的水族馆和游乐园。"
+checked = 2026-10-31
+
+[[places]]
+id = "enoshima-aquarium"
+name = "新江ノ島水族館"
+area = "神奈川県藤沢市"
+lat = 35.30967
+lon = 139.47989
+category = "amusement"
+note = "江之岛对面的水族馆，有水母和海豚秀，窗外就是海。"
+checked = 2026-10-31
+
+[[places]]
+id = "chiba-zoo"
+name = "千葉市動物公園"
+area = "千葉県千葉市若葉区"
+lat = 35.64444
+lon = 140.1255
+category = "amusement"
+note = "千叶的动物园，有小熊猫。"
+checked = 2026-10-31
+
+[[places]]
+id = "hamura-zoo"
+name = "羽村市動物公園"
+area = "羽村市"
+lat = 35.76598
+lon = 139.32882
+category = "amusement"
+note = "羽村的小动物园，有长颈鹿和企鹅，还有日本庭园。"
+checked = 2026-10-31
+
+[[places]]
+id = "machida-risuen"
+name = "町田リス園"
+area = "町田市"
+lat = 35.57808
+lon = 139.44972
+category = "amusement"
+note = "町田的松鼠园，能喂台湾松鼠。"
+checked = 2026-10-31
+
+[[places]]
+id = "tnm"
+name = "東京国立博物館"
+area = "台東区"
+lat = 35.71889
+lon = 139.77639
+category = "museum"
+note = "上野公园里的国立博物馆，本馆是和风屋顶的大楼。"
+checked = 2026-10-31
+
+[[places]]
+id = "nmwa"
+name = "国立西洋美術館"
+area = "台東区"
+lat = 35.71536
+lon = 139.77585
+category = "museum"
+note = "上野的西洋美术馆，柯布西耶设计，门口有罗丹的地狱之门。"
+checked = 2026-10-31
+
+[[places]]
+id = "kahaku"
+name = "国立科学博物館"
+area = "台東区"
+lat = 35.71632
+lon = 139.77654
+category = "museum"
+note = "上野的科学博物馆，门口有蓝鲸模型，里面是恐龙化石。"
+checked = 2026-10-31
+
+[[places]]
+id = "tobikan"
+name = "東京都美術館"
+area = "台東区"
+lat = 35.7172
+lon = 139.773
+category = "museum"
+note = "上野公园里的美术馆，砖红色的楼。"
+checked = 2026-10-31
+
+[[places]]
+id = "mori-art-museum"
+name = "森美術館"
+area = "港区"
+lat = 35.66051
+lon = 139.72907
+category = "museum"
+note = "六本木之丘顶层的美术馆。"
+checked = 2026-10-31
+
+[[places]]
+id = "nact"
+name = "国立新美術館"
+area = "港区"
+lat = 35.66528
+lon = 139.72634
+category = "museum"
+note = "六本木的美术馆，波浪形的玻璃外墙，里面有倒锥形的咖啡厅。"
+checked = 2026-10-31
+
+[[places]]
+id = "suntory-museum"
+name = "サントリー美術館"
+area = "港区"
+lat = 35.66639
+lon = 139.73028
+category = "museum"
+note = "东京中城里的美术馆，日本的器物和玻璃。"
+checked = 2026-10-31
+
+[[places]]
+id = "mot"
+name = "東京都現代美術館"
+area = "江東区"
+lat = 35.68
+lon = 139.80806
+category = "museum"
+note = "清澄白河的现代美术馆，长长的大厅。"
+checked = 2026-10-31
+
+[[places]]
+id = "top-museum"
+name = "東京都写真美術館"
+area = "目黒区"
+lat = 35.6417
+lon = 139.7132
+category = "museum"
+note = "惠比寿花园广场里的摄影美术馆。"
+checked = 2026-10-31
+
+[[places]]
+id = "ghibli-museum"
+name = "三鷹の森ジブリ美術館"
+area = "三鷹市"
+lat = 35.69623
+lon = 139.57043
+category = "museum"
+note = "井之头公园旁的吉卜力美术馆，屋顶有机器人兵。"
+checked = 2026-10-31
+
+[[places]]
+id = "edo-tokyo-open-air"
+name = "江戸東京たてもの園"
+area = "小金井市"
+lat = 35.71582
+lon = 139.51261
+category = "museum"
+note = "小金井公园里的户外建筑博物馆，有老房子和老街。"
+checked = 2026-10-31
+
+[[places]]
+id = "miraikan"
+name = "日本科学未来館"
+area = "江東区"
+lat = 35.61917
+lon = 139.77667
+category = "museum"
+note = "台场的科学馆，中间挂着发光的地球。"
+checked = 2026-10-31
+
+[[places]]
+id = "tenku-planetarium"
+name = "コニカミノルタプラネタリウム天空"
+area = "墨田区"
+lat = 35.71016
+lon = 139.81194
+category = "museum"
+note = "晴空塔商场里的天象仪。"
+checked = 2026-10-31
+
+[[places]]
+id = "planetaria-tokyo"
+name = "コニカミノルタプラネタリア TOKYO"
+area = "千代田区"
+lat = 35.67356
+lon = 139.76245
+category = "museum"
+note = "有乐町的天象仪。"
+checked = 2026-10-31
+
+[[places]]
+id = "tamarokuto"
+name = "多摩六都科学館"
+area = "西東京市"
+lat = 35.73481
+lon = 139.52286
+category = "museum"
+note = "西东京的科学馆，有大圆顶天象仪。"
+checked = 2026-10-31
+
+[[places]]
+id = "nezu-museum"
+name = "根津美術館"
+area = "港区"
+lat = 35.66216
+lon = 139.7176
+category = "museum"
+note = "青山的美术馆，竹子长廊和大庭园。"
+checked = 2026-10-31
+
+[[places]]
+id = "artizon"
+name = "アーティゾン美術館"
+area = "中央区"
+lat = 35.67889
+lon = 139.77194
+category = "museum"
+note = "京桥的美术馆。"
+checked = 2026-10-31
+
+[[places]]
+id = "station-gallery"
+name = "東京ステーションギャラリー"
+area = "千代田区"
+lat = 35.68096
+lon = 139.76731
+category = "museum"
+note = "东京站红砖驿舍里的美术馆，能看到老砖墙。"
+checked = 2026-10-31
+
+[[places]]
+id = "yokohama-museum-of-art"
+name = "横浜美術館"
+area = "神奈川県横浜市西区"
+lat = 35.4571
+lon = 139.631
+category = "museum"
+note = "港未来的美术馆，石头外墙，中间是挑高的大厅。"
+checked = 2026-10-31
+
+[[places]]
+id = "hara-model-railway"
+name = "原鉄道模型博物館"
+area = "神奈川県横浜市西区"
+lat = 35.46306
+lon = 139.62472
+category = "museum"
+note = "横滨站附近的铁道模型博物馆。"
+checked = 2026-10-31
+
+[[places]]
+id = "fujiko-f-museum"
+name = "藤子・F・不二雄ミュージアム"
+area = "神奈川県川崎市多摩区"
+lat = 35.61
+lon = 139.57361
+category = "museum"
+note = "川崎的哆啦A梦作者博物馆。"
+checked = 2026-10-31
+
+[[places]]
+id = "setagaya-art-museum"
+name = "世田谷美術館"
+area = "世田谷区"
+lat = 35.6316
+lon = 139.622
+category = "museum"
+note = "砧公园里的美术馆。"
+checked = 2026-10-31
+
+[[places]]
+id = "fuchu-art-museum"
+name = "府中市美術館"
+area = "府中市"
+lat = 35.67889
+lon = 139.49222
+category = "museum"
+note = "府中之森公园里的美术馆。"
+checked = 2026-10-31
+
+[[places]]
+id = "nakano-zero-planetarium"
+name = "なかのZEROプラネタリウム"
+area = "中野区"
+lat = 35.70449
+lon = 139.6712
+category = "museum"
+note = "中野区的小天象仪，周末有讲解员现场解说星空。"
+checked = 2026-10-31
+
+[[places]]
+id = "planetaria-yokohama"
+name = "コニカミノルタプラネタリアYOKOHAMA"
+area = "神奈川県横浜市西区"
+lat = 35.46219
+lon = 139.62458
+category = "museum"
+note = "横滨港未来的天象仪，有躺着看的座位。"
+checked = 2026-10-31
+
+[[places]]
+id = "railway-museum"
+name = "鉄道博物館"
+area = "埼玉県さいたま市大宮区"
+lat = 35.92056
+lon = 139.61833
+category = "museum"
+note = "埼玉大宫的铁道博物馆，摆满真的老火车。"
+checked = 2026-10-31
+
+[[places]]
+id = "shibuya-sky"
+name = "Shibuya Sky"
+area = "渋谷区"
+lat = 35.65846
+lon = 139.70226
+category = "night-view"
+note = "涩谷SCRAMBLE SQUARE楼顶的露天展望台，脚下是十字路口。"
+checked = 2026-10-31
+
+[[places]]
+id = "tokyo-city-view"
+name = "東京シティビュー"
+area = "港区"
+lat = 35.66043
+lon = 139.72906
+category = "night-view"
+note = "六本木之丘顶层的展望台，正对东京塔。"
+checked = 2026-10-31
+
+[[places]]
+id = "bunkyo-civic-center"
+name = "文京シビックセンター"
+area = "文京区"
+lat = 35.70787
+lon = 139.75242
+category = "night-view"
+note = "文京区役所顶层的免费展望台，能看到晴空塔和新宿。"
+checked = 2026-10-31
+
+[[places]]
+id = "rainbow-bridge"
+name = "レインボーブリッジ"
+area = "港区"
+lat = 35.63516
+lon = 139.77553
+category = "night-view"
+note = "东京湾的吊桥，晚上亮灯，可以走人行道过去。"
+checked = 2026-10-31
+slots = ["evening"]
+
+[[places]]
+id = "tokyo-gate-bridge"
+name = "東京ゲートブリッジ"
+area = "江東区"
+lat = 35.61512
+lon = 139.83082
+category = "night-view"
+note = "东京湾的恐龙形大桥，晚上亮灯。"
+checked = 2026-10-31
+slots = ["evening"]
+
+[[places]]
+id = "sky-garden"
+name = "横浜ランドマークタワー スカイガーデン"
+area = "神奈川県横浜市西区"
+lat = 35.45472
+lon = 139.63167
+category = "night-view"
+note = "横滨地标塔六十九层的展望台，脚下是港未来。"
+checked = 2026-10-31
+
+[[places]]
+id = "marine-tower"
+name = "横浜マリンタワー"
+area = "神奈川県横浜市中区"
+lat = 35.44393
+lon = 139.6509
+category = "night-view"
+note = "横滨山下公园旁的灯塔形展望塔。"
+checked = 2026-10-31
+
+[[places]]
+id = "zou-no-hana"
+name = "象の鼻パーク"
+area = "神奈川県横浜市中区"
+lat = 35.44961
+lon = 139.64317
+category = "night-view"
+note = "横滨港的老码头公园，晚上能看红砖仓库和港未来的灯。"
+checked = 2026-10-31
+slots = ["evening"]
+
+[[places]]
+id = "kishamichi"
+name = "汽車道"
+area = "神奈川県横浜市中区"
+lat = 35.45294
+lon = 139.63492
+category = "night-view"
+note = "港未来的旧铁轨步道，晚上对面是摩天轮和高楼的灯。"
+checked = 2026-10-31
+slots = ["evening"]
+
+[[places]]
+id = "tokyo-station-marunouchi"
+name = "東京駅丸の内駅舎"
+area = "千代田区"
+lat = 35.68115
+lon = 139.76598
+category = "night-view"
+note = "东京站的红砖驿舍，晚上亮灯，前面是宽阔的广场。"
+checked = 2026-10-31
+slots = ["evening"]
+
+[[places]]
+id = "azumabashi"
+name = "吾妻橋"
+area = "台東区"
+lat = 35.71
+lon = 139.79889
+category = "night-view"
+note = "浅草的红色大桥，能看到晴空塔和朝日啤酒的金色大楼。"
+checked = 2026-10-31
+slots = ["evening"]
+
+[[places]]
+id = "ebisu-garden-place"
+name = "恵比寿ガーデンプレイス"
+area = "渋谷区"
+lat = 35.64222
+lon = 139.71417
+category = "night-view"
+note = "惠比寿的红砖广场，冬天挂巴卡拉的大水晶灯。"
+checked = 2026-10-31
+
+[[places]]
+id = "carrot-tower"
+name = "キャロットタワー"
+area = "世田谷区"
+lat = 35.64376
+lon = 139.66908
+category = "night-view"
+note = "三轩茶屋的橙色高楼，顶层的免费展望台能看富士山。"
+checked = 2026-10-31
+
+[[places]]
+id = "sayanoyudokoro"
+name = "前野原温泉さやの湯処"
+area = "板橋区"
+lat = 35.77068
+lon = 139.69255
+category = "bath"
+note = "板桥的天然温泉，古民家和日式庭园，露天风吕。"
+checked = 2026-10-31
+
+[[places]]
+id = "niwa-no-yu"
+name = "豊島園 庭の湯"
+area = "練馬区"
+lat = 35.74398
+lon = 139.64802
+category = "bath"
+note = "练马的温泉，大庭园围着露天风吕。"
+checked = 2026-10-31
+
+[[places]]
+id = "kosugiyu"
+name = "小杉湯"
+area = "杉並区"
+lat = 35.70811
+lon = 139.64881
+category = "bath"
+note = "高圆寺的老钱汤，宫殿式的屋顶，招牌是牛奶浴。"
+checked = 2026-10-31
+
+[[places]]
+id = "kairyoyu"
+name = "改良湯"
+area = "渋谷区"
+lat = 35.65305
+lon = 139.70952
+category = "bath"
+note = "涩谷附近的钱汤，干净明亮。"
+checked = 2026-10-31
+
+[[places]]
+id = "hisamatsuyu"
+name = "天然温泉 久松湯"
+area = "練馬区"
+lat = 35.7414
+lon = 139.66169
+category = "bath"
+note = "练马的天然温泉钱汤，现代的建筑。"
+checked = 2026-10-31
+
+[[places]]
+id = "daikokuyu"
+name = "大黒湯"
+area = "墨田区"
+lat = 35.70502
+lon = 139.81365
+category = "bath"
+note = "押上的钱汤，露天风吕能看到晴空塔。"
+checked = 2026-10-31
+
+[[places]]
+id = "koganeyu"
+name = "黄金湯"
+area = "墨田区"
+lat = 35.7023
+lon = 139.81531
+category = "bath"
+note = "锦糸町的钱汤，翻新后很时髦，有啤酒吧台。"
+checked = 2026-10-31
+
+[[places]]
+id = "inariyu"
+name = "稲荷湯"
+area = "北区"
+lat = 35.74469
+lon = 139.72447
+category = "bath"
+note = "北区泷野川的老钱汤，宫殿式的屋顶和富士山壁画。"
+checked = 2026-10-31
+
+[[places]]
+id = "spa-laqua"
+name = "スパラクーア"
+area = "文京区"
+lat = 35.70713
+lon = 139.75294
+category = "bath"
+note = "东京巨蛋城里的温泉设施。"
+checked = 2026-10-31
+
+[[places]]
+id = "takao-gokurakuyu"
+name = "京王高尾山温泉 極楽湯"
+area = "八王子市"
+lat = 35.63212
+lon = 139.26927
+category = "bath"
+note = "高尾山口站旁的温泉，爬完山来泡。"
+checked = 2026-10-31
+
+[[places]]
+id = "ryogoku-edoyu"
+name = "両国湯屋江戸遊"
+area = "墨田区"
+lat = 35.69674
+lon = 139.79857
+category = "bath"
+note = "两国的温泉设施，江户风的装潢。"
+checked = 2026-10-31
+
+[[places]]
+id = "heiwajima-onsen"
+name = "天然温泉 平和島"
+area = "大田区"
+lat = 35.5852
+lon = 139.73996
+category = "bath"
+note = "大田区的温泉设施。"
+checked = 2026-10-31
+
+[[places]]
+id = "bunka-yokusen"
+name = "文化浴泉"
+area = "目黒区"
+lat = 35.64978
+lon = 139.68728
+category = "bath"
+note = "目黑的钱汤。"
+checked = 2026-10-31
+
+[[places]]
+id = "matsumotoyu"
+name = "松本湯"
+area = "中野区"
+lat = 35.71083
+lon = 139.68973
+category = "bath"
+note = "中野的钱汤，翻新过。"
+checked = 2026-10-31
+
+[[places]]
+id = "utsukushinoyu"
+name = "美しの湯"
+area = "杉並区"
+lat = 35.68455
+lon = 139.61468
+category = "bath"
+note = "高井户的温泉钱汤。"
+checked = 2026-10-31
+
+[[places]]
+id = "somei-onsen"
+name = "東京染井温泉 SAKURA"
+area = "豊島区"
+lat = 35.73788
+lon = 139.73921
+category = "bath"
+note = "巢鸭的温泉，日式的建筑。"
+checked = 2026-10-31
+
+[[places]]
+id = "chidorigafuchi"
+name = "千鳥ヶ淵緑道"
+area = "千代田区"
+lat = 35.69143
+lon = 139.7471
+category = "seasonal"
+note = "皇居护城河边的樱花步道，花开时樱花垂到水面，有人划船。"
+checked = 2026-10-31
+seasons = ["spring"]
+
+[[places]]
+id = "meguro-river"
+name = "目黒川"
+area = "目黒区"
+lat = 35.63735
+lon = 139.70767
+category = "seasonal"
+note = "中目黑一带的目黑川，两岸樱花，晚上点灯笼。"
+checked = 2026-10-31
+seasons = ["spring"]
+
+[[places]]
+id = "sumida-park"
+name = "隅田公園"
+area = "台東区"
+lat = 35.71514
+lon = 139.80286
+category = "seasonal"
+note = "隅田川两岸的公园，樱花和晴空塔。"
+checked = 2026-10-31
+seasons = ["spring"]
+
+[[places]]
+id = "asukayama-park"
+name = "飛鳥山公園"
+area = "北区"
+lat = 35.75056
+lon = 139.73889
+category = "seasonal"
+note = "王子的赏樱名所，坐小单轨上山。"
+checked = 2026-10-31
+seasons = ["spring"]
+
+[[places]]
+id = "kunitachi-daigaku-dori"
+name = "大学通り"
+area = "国立市"
+lat = 35.69833
+lon = 139.44676
+category = "seasonal"
+note = "国立站前的宽马路，两边樱花和银杏。"
+checked = 2026-10-31
+seasons = ["spring", "autumn"]
+
+[[places]]
+id = "sotobori-park"
+name = "外濠公園"
+area = "新宿区"
+lat = 35.6892
+lon = 139.73116
+category = "seasonal"
+note = "饭田桥到四谷的护城河边的长条公园，樱花，旁边是中央线电车。"
+checked = 2026-10-31
+seasons = ["spring"]
+
+[[places]]
+id = "harimazaka"
+name = "播磨坂"
+area = "文京区"
+lat = 35.71693
+lon = 139.74304
+category = "seasonal"
+note = "文京区的樱花坡道，中间是绿化带。"
+checked = 2026-10-31
+seasons = ["spring"]
+
+[[places]]
+id = "horikiri-shobuen"
+name = "堀切菖蒲園"
+area = "葛飾区"
+lat = 35.74236
+lon = 139.82597
+category = "seasonal"
+note = "葛饰的菖蒲园，初夏开满菖蒲。"
+checked = 2026-10-31
+seasons = ["summer"]
+
+[[places]]
+id = "hanegi-park"
+name = "羽根木公園"
+area = "世田谷区"
+lat = 35.65806
+lon = 139.655
+category = "seasonal"
+note = "世田谷的梅林公园，早春开梅花。"
+checked = 2026-10-31
+seasons = ["spring", "winter"]
+
+[[places]]
+id = "keio-mogusaen"
+name = "京王百草園"
+area = "日野市"
+lat = 35.65419
+lon = 139.42719
+category = "seasonal"
+note = "日野的山坡梅园。"
+checked = 2026-10-31
+seasons = ["spring", "winter"]
+
+[[places]]
+id = "ume-no-koen"
+name = "青梅市梅の公園"
+area = "青梅市"
+lat = 35.78622
+lon = 139.21883
+category = "seasonal"
+note = "青梅的山坡梅园。"
+checked = 2026-10-31
+seasons = ["spring", "winter"]
+
+[[places]]
+id = "ikuta-rose-garden"
+name = "生田緑地ばら苑"
+area = "神奈川県川崎市多摩区"
+lat = 35.60805
+lon = 139.56896
+category = "seasonal"
+note = "川崎的玫瑰园，只在春秋开放。"
+checked = 2026-10-31
+seasons = ["spring", "autumn"]
+
+[[places]]
+id = "dankazura"
+name = "段葛"
+area = "神奈川県鎌倉市"
+lat = 35.32139
+lon = 139.55355
+category = "seasonal"
+note = "镰仓若宫大路中间的樱花参道。"
+checked = 2026-10-31
+seasons = ["spring"]
+
+[[places]]
+id = "shingashi-river"
+name = "新河岸川"
+area = "埼玉県川越市"
+lat = 35.92621
+lon = 139.49269
+category = "seasonal"
+note = "川越冰川神社后面的河，春天樱花，夏天放鲤鱼旗。"
+checked = 2026-10-31
+seasons = ["spring"]
+
+[[places]]
+id = "keyakizaka"
+name = "けやき坂"
+area = "港区"
+lat = 35.65941
+lon = 139.72815
+category = "seasonal"
+note = "六本木之丘旁的坡道，冬天行道树挂满白蓝色的灯，尽头是东京塔。"
+checked = 2026-10-31
+seasons = ["winter"]
+slots = ["evening"]
+
+[[places]]
+id = "caretta-shiodome"
+name = "カレッタ汐留"
+area = "港区"
+lat = 35.66488
+lon = 139.76247
+category = "seasonal"
+note = "汐留的高楼，冬天的灯光秀。"
+checked = 2026-10-31
+seasons = ["winter"]
+slots = ["evening"]
+
+[[places]]
+id = "southern-terrace"
+name = "新宿サザンテラス"
+area = "渋谷区"
+lat = 35.68678
+lon = 139.70069
+category = "seasonal"
+note = "新宿南口的步道，冬天行道树挂灯。"
+checked = 2026-10-31
+seasons = ["winter"]
+slots = ["evening"]
+
+[[places]]
+id = "tama-forest-science-garden"
+name = "多摩森林科学園"
+area = "八王子市"
+lat = 35.64567
+lon = 139.27956
+category = "seasonal"
+note = "八王子的樱花保存林，春天开满各种樱花。"
+checked = 2026-10-31
+seasons = ["spring"]
+
+[[places]]
+id = "omokagebashi"
+name = "面影橋"
+area = "新宿区"
+lat = 35.71292
+lon = 139.71453
+category = "seasonal"
+note = "神田川上的小桥，樱花垂到河面，都电荒川线从旁边开过。"
+checked = 2026-10-31
+seasons = ["spring"]
+
+[[places]]
+id = "zenpukuji-river"
+name = "善福寺川緑地"
+area = "杉並区"
+lat = 35.6928
+lon = 139.62951
+category = "seasonal"
+note = "杉并的河边长条绿地，春天樱花隧道。"
+checked = 2026-10-31
+seasons = ["spring"]
+
+[[places]]
+id = "senzoku-pond"
+name = "洗足池公園"
+area = "大田区"
+lat = 35.60174
+lon = 139.69046
+category = "seasonal"
+note = "大田区的池塘，春天樱花，秋天红叶。"
+checked = 2026-10-31
+seasons = ["spring", "autumn"]

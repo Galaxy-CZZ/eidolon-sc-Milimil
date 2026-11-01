@@ -1,7 +1,7 @@
 // 设置页里编辑制作人档案用的草稿：空白表示这一项沿用默认（GLOSSARY.md「制作人档案」），
 // 保存时存成 null 交回后端。
 
-import type { Gender, ProducerProfile } from "@/lib/api";
+import type { City, Gender, ProducerProfile } from "@/lib/api";
 
 /** 和后端的 MAX_FORM_OF_ADDRESS_LENGTH 一致，按字数（Python 的 len）计算。 */
 export const MAX_FORM_OF_ADDRESS = 20;
@@ -13,15 +13,21 @@ export type Draft = {
   timezone: string;
   birthMonth: number | null;
   birthDay: number | null;
+  /** 所在城市，没设置是 null。 */
+  city: City | null;
+  /** 部署者能不能找城市（配了和风天气）；不能时设置里不显示这一项，存着的城市照样交回。 */
+  findsCities: boolean;
 };
 
-export function toDraft(profile: ProducerProfile): Draft {
+export function toDraft(profile: ProducerProfile & { finds_cities?: boolean }): Draft {
   return {
     formOfAddress: profile.form_of_address ?? "",
     gender: profile.gender ?? "",
     timezone: profile.timezone ?? "",
     birthMonth: profile.birthday?.month ?? null,
     birthDay: profile.birthday?.day ?? null,
+    city: profile.city ?? null,
+    findsCities: profile.finds_cities ?? false,
   };
 }
 
@@ -36,6 +42,7 @@ export function fromDraft(draft: Draft): ProducerProfile {
       draft.birthMonth !== null && draft.birthDay !== null
         ? { month: draft.birthMonth, day: draft.birthDay }
         : null,
+    city: draft.city,
   };
 }
 
@@ -58,8 +65,25 @@ export function sameDraft(a: Draft, b: Draft): boolean {
     a.gender === b.gender &&
     a.timezone === b.timezone &&
     a.birthMonth === b.birthMonth &&
-    a.birthDay === b.birthDay
+    a.birthDay === b.birthDay &&
+    sameCity(a.city, b.city)
   );
+}
+
+/** 两个城市是不是同一个（名字和坐标都一样）；都没有也算一样。 */
+export function sameCity(a: City | null, b: City | null): boolean {
+  if (a === null || b === null) return a === b;
+  return a.name === b.name && a.latitude === b.latitude && a.longitude === b.longitude;
+}
+
+/** 设置里怎么写一个城市：名字，再加上它所在的、没被前面说过的上级，例如「东城 · 北京 · 中国」
+ * （北京市不再写一遍），和后端告诉她的一致。 */
+export function cityLabel(city: City): string {
+  const kept: string[] = [];
+  for (const part of [city.name, city.adm2, city.adm1, city.country]) {
+    if (part && !kept.some((k) => k.startsWith(part) || part.startsWith(k))) kept.push(part);
+  }
+  return kept.join(" · ");
 }
 
 /** 称呼最多 MAX_FORM_OF_ADDRESS 个字；按字截，不会把一个字切成两半。 */

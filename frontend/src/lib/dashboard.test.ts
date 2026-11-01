@@ -24,6 +24,8 @@ import {
   dashboardHref,
   dashboardTabs,
   labelledStretches,
+  letterTiles,
+  momentTiles,
   rangeFromQuery,
   reachOutTiles,
   scheduleTiles,
@@ -290,6 +292,19 @@ describe("affinityRows", () => {
   });
 });
 
+describe("letterTiles", () => {
+  it("are none where the section is empty", () => {
+    expect(letterTiles(null)).toEqual([]);
+  });
+
+  it("count the letters written and the times writing one failed", () => {
+    expect(letterTiles({ succeeded: 1200, failed: 3 }).map((tile) => [tile.label, tile.value])).toEqual([
+      ["写了", "1,200"],
+      ["失败", "3"],
+    ]);
+  });
+});
+
 describe("reachOutTiles", () => {
   it("are none where the section is empty", () => {
     expect(reachOutTiles(null)).toEqual([]);
@@ -302,6 +317,24 @@ describe("reachOutTiles", () => {
       ["被回了", "25%"],
     ]);
     expect(reachOutTiles({ succeeded: 0, failed: 2, answered_share: null })[2].value).toBe("—");
+  });
+});
+
+describe("momentTiles", () => {
+  it("are none where the section is empty", () => {
+    expect(momentTiles(null)).toEqual([]);
+  });
+
+  it("count the moments posted and failed, the replies and failed, and tell the share liked or commented on, a dash of none", () => {
+    const section = { posted: 1200, posts_failed: 3, replied: 40, replies_failed: 2, liked_or_commented_share: 0.25 };
+    expect(momentTiles(section).map((tile) => [tile.label, tile.value])).toEqual([
+      ["发了", "1,200"],
+      ["发失败", "3"],
+      ["回评论", "40"],
+      ["回失败", "2"],
+      ["近 30 天制作人赞或评论过", "25%"],
+    ]);
+    expect(momentTiles({ ...section, liked_or_commented_share: null })[4].value).toBe("—");
   });
 });
 

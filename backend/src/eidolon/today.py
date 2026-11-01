@@ -59,18 +59,35 @@ def today_lines(
     return lines
 
 
+def venues_on_this_day(now: datetime, character: Character, world: World | None) -> list[str]:
+    """Where the days of the lives `character` stood on in `world` that fell on the day it
+    is in Tokyo at `now`, in a year before, were, earliest first: as `today_lines` tells
+    them."""
+    her_lives = world.lives_of(character.name) if world else []
+    return [day.venue for _, day in _days_on_this_day(tokyo_date(now), her_lives)]
+
+
+def _days_on_this_day(
+    today: date, her_lives: Sequence[tuple[Live, Sequence[LiveDay]]]
+) -> list[tuple[Live, LiveDay]]:
+    """The days she stood on that fell on `today`'s month and day in a year before, earliest
+    first."""
+    found = [
+        (live, day) for live, days in her_lives for day in days
+        if day.date.year < today.year and (day.date.month, day.date.day) == (today.month, today.day)
+    ]
+    return sorted(found, key=lambda f: f[1].date)
+
+
 def _lives_on_this_day(
     today: date, her_lives: Sequence[tuple[Live, Sequence[LiveDay]]]
 ) -> list[str]:
     """A line for each of the days she stood on that fell on `today`'s month and day in a
     year before: told as past, the date with its year matching today's otherwise, so that
     she is not to take it for today."""
-    found = [
-        (day.date, live, day) for live, days in her_lives for day in days
-        if day.date.year < today.year and (day.date.month, day.date.day) == (today.month, today.day)
-    ]
     lines = []
-    for when, live, day in sorted(found, key=lambda f: f[0]):
+    for live, day in _days_on_this_day(today, her_lives):
+        when = day.date
         which = f"第{live.days.index(day) + 1}天" if len(live.days) > 1 else ""
         lines.append(
             f"今天是{today.year - when.year}年前你站上「{live.name}」{which}的日子"

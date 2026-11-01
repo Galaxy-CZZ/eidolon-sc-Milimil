@@ -24,7 +24,7 @@ from eidolon.database import (
     tables,
 )
 from eidolon.delivery_cues import without_cues
-from eidolon.producer import Birthday, ProducerProfile
+from eidolon.producer import Birthday, City, ProducerProfile
 from eidolon.reply_format import Segment
 
 Admit = Callable[[sqlite3.Connection, str], None]
@@ -78,7 +78,14 @@ CREATE TABLE IF NOT EXISTS producer_profiles (
     timezone TEXT,
     updated_at TEXT NOT NULL,
     birthday_month INTEGER,
-    birthday_day INTEGER
+    birthday_day INTEGER,
+    -- Where the producer is, as QWeather found it (`producer.City`): NULL for nowhere set.
+    city_name TEXT,
+    city_adm2 TEXT,
+    city_adm1 TEXT,
+    city_country TEXT,
+    city_latitude REAL,
+    city_longitude REAL
 );
 -- `title` is its conversation title (`titles`), NULL until it is named, if ever.
 CREATE TABLE IF NOT EXISTS conversations (
@@ -428,6 +435,18 @@ class CurrentConversation:
 
 
 @dataclass(frozen=True)
+class InTouch:
+    """How a user and a character are in touch, over all their conversations, as moments go
+    by it (GLOSSARY.md「朋友圈」): whether they have had a turn; when they were last in touch
+    (`read_last_contact`; None before either)."""
+
+    user_id: str
+    character_id: str
+    has_turns: bool
+    last_contact: datetime | None
+
+
+@dataclass(frozen=True)
 class Contact:
     """A turn the user took with a character (the time of their message) or a gift they
     gave her, and whether she liked it as it was given, as stats count them."""
@@ -762,6 +781,18 @@ class Store:
         is none such."""
         return await self._db.read(_photo_image, photo_id, user_id)
 
+    async def reply_said(self, conversation_id: str, message_id: int) -> list[Segment] | None:
+        """The segments of her reply `message_id`, as the model wrote them, delivery cues and
+        all; None unless it is a reply of hers in the conversation."""
+        return await self._db.read(_reply_said, conversation_id, message_id)
+
+    async def reach_out_said(
+        self, conversation_id: str, reach_out_id: int
+    ) -> list[Segment] | None:
+        """The segments of her reach-out `reach_out_id`, as the model wrote them; None unless
+        it is one in the conversation."""
+        return await self._db.read(_reach_out_said, conversation_id, reach_out_id)
+
     async def hang_up(self, conversation_id: str) -> ConversationEvent:
         """Record that she hung up on the user in the conversation, now (`hung_up`), unless
         she has ended it: then nothing more is recorded, and it is her ending it that is
@@ -861,6 +892,10 @@ def _open(db: sqlite3.Connection) -> None:
         db.execute("UPDATE users SET name = id")
     _add_missing_columns(db, "users", ("consented_at", "banned_at", "ban_note"), "TEXT")
     _add_missing_columns(db, "producer_profiles", ("birthday_month", "birthday_day"), "INTEGER")
+    _add_missing_columns(
+        db, "producer_profiles", ("city_name", "city_adm2", "city_adm1", "city_country"), "TEXT"
+    )
+    _add_missing_columns(db, "producer_profiles", ("city_latitude", "city_longitude"), "REAL")
     _add_missing_columns(db, "messages", ("affinity",), "TEXT")
     _add_missing_columns(db, "messages", ("hurt",), "REAL")
     _add_missing_columns(db, "messages", ("out_of_line",), "INTEGER")
@@ -1139,7 +1174,8 @@ def read_profile(db: sqlite3.Connection, user_id: str) -> ProducerProfile:
     """The user's producer profile, read through `db`: what `Store.get_profile` reads, and
     what other modules read in their own transactions; all defaults until they save one."""
     row = by_name(db).execute(
-        "SELECT form_of_address, gender, timezone, birthday_month, birthday_day"
+        "SELECT form_of_address, gender, timezone, birthday_month, birthday_day, city_name,"
+        " city_adm2, city_adm1, city_country, city_latitude, city_longitude"
         " FROM producer_profiles WHERE user_id = ?",
         (user_id,),
     ).fetchone()
@@ -1150,20 +1186,35 @@ def read_profile(db: sqlite3.Connection, user_id: str) -> ProducerProfile:
         if row["birthday_month"] is not None and row["birthday_day"] is not None
         else None
     )
-    return ProducerProfile(row["form_of_address"], row["gender"], row["timezone"], birthday)
+    city = (
+        City(
+            row["city_name"], row["city_adm2"] or "", row["city_adm1"] or "",
+            row["city_country"] or "", row["city_latitude"], row["city_longitude"],
+        )
+        if row["city_name"] is not None and row["city_latitude"] is not None
+        and row["city_longitude"] is not None
+        else None
+    )
+    return ProducerProfile(
+        row["form_of_address"], row["gender"], row["timezone"], birthday, city
+    )
 
 
 def write_profile(db: sqlite3.Connection, user_id: str, profile: ProducerProfile) -> None:
     """Save the user's whole producer profile through `db`, in the caller's transaction: what
     `Store.save_profile` does, and importing a data package in its write task."""
-    birthday = profile.birthday
+    birthday, city = profile.birthday, profile.city
     db.execute(
         "INSERT INTO producer_profiles"
         " (user_id, form_of_address, gender, timezone, birthday_month, birthday_day,"
-        " updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)"
+        " city_name, city_adm2, city_adm1, city_country, city_latitude, city_longitude,"
+        " updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         " ON CONFLICT (user_id) DO UPDATE SET form_of_address = excluded.form_of_address,"
         " gender = excluded.gender, timezone = excluded.timezone,"
         " birthday_month = excluded.birthday_month, birthday_day = excluded.birthday_day,"
+        " city_name = excluded.city_name, city_adm2 = excluded.city_adm2,"
+        " city_adm1 = excluded.city_adm1, city_country = excluded.city_country,"
+        " city_latitude = excluded.city_latitude, city_longitude = excluded.city_longitude,"
         " updated_at = excluded.updated_at",
         (
             user_id,
@@ -1172,6 +1223,12 @@ def write_profile(db: sqlite3.Connection, user_id: str, profile: ProducerProfile
             profile.timezone,
             birthday and birthday.month,
             birthday and birthday.day,
+            city and city.name,
+            city and city.adm2,
+            city and city.adm1,
+            city and city.country,
+            city and city.latitude,
+            city and city.longitude,
             _now(),
         ),
     )
@@ -1487,6 +1544,26 @@ def _photo_image(db: sqlite3.Connection, photo_id: str, user_id: str) -> bytes |
     return row[0] if row else None
 
 
+def _reply_said(
+    db: sqlite3.Connection, conversation_id: str, message_id: int
+) -> list[Segment] | None:
+    row = db.execute(
+        "SELECT segments FROM messages WHERE id = ? AND conversation_id = ? AND role = 'character'",
+        (message_id, conversation_id),
+    ).fetchone()
+    return [Segment(**s) for s in json.loads(row[0] or "[]")] if row else None
+
+
+def _reach_out_said(
+    db: sqlite3.Connection, conversation_id: str, reach_out_id: int
+) -> list[Segment] | None:
+    row = db.execute(
+        "SELECT segments FROM reach_outs WHERE id = ? AND conversation_id = ?",
+        (reach_out_id, conversation_id),
+    ).fetchone()
+    return [Segment(**s) for s in json.loads(row[0])] if row else None
+
+
 def add_gift(
     db: sqlite3.Connection,
     user_id: str,
@@ -1655,17 +1732,61 @@ def _current_conversations(db: sqlite3.Connection) -> list[CurrentConversation]:
     ]
 
 
-def read_last_contact(
+def read_in_touch(db: sqlite3.Connection, user_id: str | None = None) -> list[InTouch]:
+    """How every user, but banned users, or only `user_id` if not banned, is in touch with
+    each character they have a conversation with, read through `db`; in no order."""
+    only = " AND c.user_id = :user" if user_id is not None else ""
+    users = f"JOIN users u ON u.id = c.user_id AND u.banned_at IS NULL{only}"
+    turns = db.execute(
+        "SELECT c.user_id, c.character_id, MAX(m.created_at) FROM conversations c"
+        f" {users} LEFT JOIN messages m ON m.conversation_id = c.id"
+        " GROUP BY c.user_id, c.character_id",
+        {"user": user_id},
+    ).fetchall()
+    calls: dict[tuple[str, str], list[tuple[str, float]]] = {}
+    for user, character, connected_at, duration_s in db.execute(
+        "SELECT c.user_id, c.character_id, k.connected_at, k.duration_s FROM calls k"
+        f" JOIN conversations c ON c.id = k.conversation_id {users}",
+        {"user": user_id},
+    ):
+        calls.setdefault((user, character), []).append((connected_at, duration_s))
+    return [
+        InTouch(user, character, last_turn is not None,
+                _last_contact(last_turn, calls.get((user, character), [])))
+        for user, character, last_turn in turns
+    ]
+
+
+def read_current_conversation(
     db: sqlite3.Connection, user_id: str, character_id: str
+) -> Conversation | None:
+    """The user's current conversation with the character (GLOSSARY.md「当前对话」), read
+    through `db`; None without one."""
+    row = by_name(db).execute(
+        f"SELECT c.* FROM conversations c WHERE c.user_id = ? AND c.character_id = ?"
+        f" AND {_CURRENT}",
+        (user_id, character_id),
+    ).fetchone()
+    if row is None:
+        return None
+    return Conversation(
+        row["id"], row["user_id"], row["character_id"], row["created_at"], row["title"]
+    )
+
+
+def read_last_contact(
+    db: sqlite3.Connection, user_id: str, character_id: str, before: datetime | None = None
 ) -> datetime | None:
     """When the user and the character were last in touch, in any of their conversations,
     read through `db`: her last turn recorded, or a call that connected ending, whichever
-    was later; None before either."""
+    was later, and earlier than `before` if given; None before either."""
+    until = () if before is None else (before.astimezone(UTC).isoformat(),)
     [last_turn] = db.execute(
         "SELECT MAX(m.created_at) FROM messages m"
         " JOIN conversations c ON c.id = m.conversation_id"
-        " WHERE c.user_id = ? AND c.character_id = ?",
-        (user_id, character_id),
+        " WHERE c.user_id = ? AND c.character_id = ?"
+        + ("" if before is None else " AND m.created_at < ?"),
+        (user_id, character_id, *until),
     ).fetchone()
     calls = db.execute(
         "SELECT k.connected_at, k.duration_s FROM calls k"
@@ -1673,6 +1794,8 @@ def read_last_contact(
         " WHERE c.user_id = ? AND c.character_id = ?",
         (user_id, character_id),
     ).fetchall()
+    if before is not None:
+        calls = [call for call in calls if _call_ended(*call) < before]
     return _last_contact(last_turn, calls)
 
 

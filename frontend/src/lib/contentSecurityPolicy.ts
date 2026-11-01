@@ -4,7 +4,8 @@
 // would make every page render on each request. The one other place pages load from is
 // where the stands are kept (`EIDOLON_STAND_ASSETS_URL`): their outfit lists and Spine
 // files, thumbnails and the landing page's greetings. Images may also be `data:` and `blob:`:
-// the share card is turned into a PNG through them, in the page.
+// the share card is turned into a PNG through them, in the page. Media may be `blob:` too: her
+// words read aloud are played from the audio the page was sent (GLOSSARY.md「朗读」).
 
 /** The policy, with the stands' address if it is one. */
 export function contentSecurityPolicy(standAssetsUrl: string | undefined): string {
@@ -15,7 +16,7 @@ export function contentSecurityPolicy(standAssetsUrl: string | undefined): strin
     "script-src 'self' 'unsafe-inline'",
     "style-src 'self' 'unsafe-inline'",
     `img-src 'self' data: blob:${standsSource}`,
-    `media-src 'self'${standsSource}`,
+    `media-src 'self' blob:${standsSource}`,
     "font-src 'self'",
     `connect-src 'self'${standsSource}`,
     "object-src 'none'",

@@ -18,12 +18,16 @@ function ContextMenuPortal({ ...props }: ContextMenuPrimitive.Portal.Props) {
 
 function ContextMenuTrigger({
   className,
+  selectable = false,
   ...props
-}: ContextMenuPrimitive.Trigger.Props) {
+}: ContextMenuPrimitive.Trigger.Props & {
+  // eidolon: selectable：里面的字在电脑上照样能选、能复制（她的气泡），只在触屏上不选，长按留给菜单。
+  selectable?: boolean
+}) {
   return (
     <ContextMenuPrimitive.Trigger
       data-slot="context-menu-trigger"
-      className={cn("select-none", className)}
+      className={cn(selectable ? "pointer-coarse:select-none" : "select-none", className)}
       {...props}
     />
   )
@@ -35,14 +39,18 @@ function ContextMenuContent({
   alignOffset = 4,
   side = "right",
   sideOffset = 0,
+  container,
   ...props
 }: ContextMenuPrimitive.Popup.Props &
   Pick<
     ContextMenuPrimitive.Positioner.Props,
     "align" | "alignOffset" | "side" | "sideOffset"
-  >) {
+  > & {
+  // eidolon: container 透传给 Portal，同 dropdown-menu：对话子树里的菜单要拿到子树的 .dark。
+    container?: ContextMenuPrimitive.Portal.Props["container"]
+  }) {
   return (
-    <ContextMenuPrimitive.Portal>
+    <ContextMenuPrimitive.Portal container={container}>
       <ContextMenuPrimitive.Positioner
         className="isolate z-50 outline-none"
         align={align}

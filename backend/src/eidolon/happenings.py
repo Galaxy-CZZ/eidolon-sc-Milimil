@@ -23,6 +23,12 @@ record for the dashboard to count (`ActivityLog.achievement_unlocked`,
 `ActivityLog.character_complete`): written apart, once what it records is kept, writing them
 failing is only logged.
 
+Each stage unlocked and each character complete is told to the letters in the same transaction
+(`Letters.reached`): which of them is an occasion for a letter is theirs to tell. Whether
+letters are on is told with whether affinity and gifts are, on the event loop, before the
+write task is handed in (`open`): a transaction body reads none of the event loop's state
+(ADR-0028).
+
 Each user's progress with the achievements is theirs, deleted with them
 (`database.USER_DATA`), and goes in no data package. The retired daily tasks' table of
 progress is dropped as the backend starts (`_open`)."""
@@ -32,6 +38,7 @@ import sqlite3
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from eidolon import achievements
 from eidolon.achievements import Completed, Hers, Progress, Tally, Unlocked
@@ -41,7 +48,21 @@ from eidolon.data_access import Database
 from eidolon.gifts import Drawn, Given, Gifts, Reward
 from eidolon.store import keep_call
 
+if TYPE_CHECKING:
+    from eidolon.letters import Letters
+
 log = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class Open:
+    """What is open now, told on the event loop before handing in the write task what
+    happens is kept in, and kept to as told (ADR-0028): affinity and gifts, for what happens
+    to be kept towards them; letters, for what it unlocks to be told to them."""
+
+    affinity: bool
+    letters: bool
+
 
 @dataclass(frozen=True)
 class Rewarded:
@@ -80,21 +101,23 @@ class Happenings:
         is_open: Callable[[], bool],
         gifts: Gifts,
         activity: ActivityLog,
+        letters: "Letters | None" = None,
     ) -> None:
-        """`is_open` tells whether affinity and gifts are open now."""
+        """`is_open` tells whether affinity and gifts are open now; `letters` is told of each
+        stage unlocked and each character complete, while they are on."""
         self._db = db
         self._is_open = is_open
         self._gifts = gifts
         self._activity = activity
+        self._letters = letters
         db.prepare(_open)
         self._launch()
 
     @property
-    def open(self) -> bool:
-        """Whether affinity and gifts are open now, so that what happens is kept towards
-        them: told on the event loop, before handing in the write task it is kept in
-        (`turn_recorded`)."""
-        return self._is_open()
+    def open(self) -> Open:
+        """What is open now: told on the event loop, before handing in the write task what
+        happens is kept in (`turn_recorded`)."""
+        return Open(self._is_open(), self._letters is not None and self._letters.on)
 
     def _launch(self) -> None:
         """Reward everyone, once ever, for how far they had come before the achievements
@@ -127,15 +150,15 @@ class Happenings:
         user_id: str,
         character_id: str,
         tier: Tier | None,
-        open: bool,
+        open: Open,
     ) -> Rewarded | None:
         """A turn of the user's with the character is recorded, now, leaving her affinity in
-        `tier` (None if not known), through `db`, in the transaction it is recorded in, while
-        affinity and gifts are `open` or not, as `open` told as it was handed in: what it is
-        rewarded with; None if nothing. Its activity records are `write_records`'s."""
-        if not open:
+        `tier` (None if not known), through `db`, in the transaction it is recorded in, with
+        what is `open` as it was told as it was handed in: what it is rewarded with; None if
+        nothing. Its activity records are `write_records`'s."""
+        if not open.affinity:
             return None
-        return self._happened(db, user_id, character_id, turns=1, tier=tier)
+        return self._happened(db, user_id, character_id, open, turns=1, tier=tier)
 
     async def give(
         self, user_id: str, gift_id: str, character_id: str, device_timezone: str | None
@@ -149,7 +172,7 @@ class Happenings:
         self._gifts.refuse_unknown(gift_id, character_id)
         warmed = await self._gifts.warms(user_id, gift_id, character_id, device_timezone)
         given, rewarded = await self._db.write(
-            self._give, user_id, gift_id, character_id, warmed
+            self._give, user_id, gift_id, character_id, warmed, self.open
         )
         await self.write_records(user_id, rewarded)
         return given, rewarded
@@ -179,7 +202,7 @@ class Happenings:
         (None if nothing). Raises GiftsClosed if gifts are not open, NoDraws if there are no
         chances to draw."""
         await self._gifts.refuse_unless_open()
-        drawn, rewarded = await self._db.write(self._draw, user_id, all)
+        drawn, rewarded = await self._db.write(self._draw, user_id, all, self.open)
         await self.write_records(user_id, rewarded)
         return drawn, rewarded
 
@@ -221,11 +244,11 @@ class Happenings:
 
     def _give(
         self, db: sqlite3.Connection, user_id: str, gift_id: str, character_id: str,
-        warmed: bool,
+        warmed: bool, open: Open,
     ) -> tuple[Given, Rewarded | None]:
         given = self._gifts.give(db, user_id, gift_id, character_id, warmed)
         return given, self._happened(
-            db, user_id, character_id, gifts=1, tier=given.affinity.tier
+            db, user_id, character_id, open, gifts=1, tier=given.affinity.tier
         )
 
     def _call_ended(
@@ -236,23 +259,24 @@ class Happenings:
         character_id: str,
         connected_at: datetime,
         seconds: float,
-        open: bool,
+        open: Open,
     ) -> Rewarded | None:
-        if not keep_call(db, conversation_id, connected_at, seconds) or not open:
+        if not keep_call(db, conversation_id, connected_at, seconds) or not open.affinity:
             return None
-        return self._happened(db, user_id, character_id, call_time=seconds)
+        return self._happened(db, user_id, character_id, open, call_time=seconds)
 
     def _draw(
-        self, db: sqlite3.Connection, user_id: str, all: bool
+        self, db: sqlite3.Connection, user_id: str, all: bool, open: Open
     ) -> tuple[Drawn, Rewarded | None]:
         drawn = self._gifts.draw(db, user_id, all=all)
-        return drawn, self._happened(db, user_id, None, draws=len(drawn.drawn))
+        return drawn, self._happened(db, user_id, None, open, draws=len(drawn.drawn))
 
     def _happened(
         self,
         db: sqlite3.Connection,
         user_id: str,
         character_id: str | None,
+        open: Open,
         *,
         turns: int = 0,
         gifts: int = 0,
@@ -263,8 +287,8 @@ class Happenings:
         """Keep the `turns` and `gifts` with the character (None for none), the time talked in
         a call, the times drawn and the tier her affinity was left in towards the
         achievements, and give the rewards for the stages it unlocked, through `db`, in the
-        transaction what happened is kept in, affinity and gifts open: what it was rewarded
-        with; None if nothing."""
+        transaction what happened is kept in, affinity and gifts open, telling the letters of
+        what it unlocked if they are `open`: what it was rewarded with; None if nothing."""
         done: dict[str, Unlocked | Completed] = {}
         """Each stage unlocked or character completed, by the key it is rewarded by."""
 
@@ -280,6 +304,8 @@ class Happenings:
         if not given:
             return None
         what = [done[r.key] for r in given]
+        if self._letters is not None and open.letters:
+            self._letters.reached(db, user_id, what, at)
         return Rewarded(
             sum(r.draws for r in given), sum(r.reset_cards for r in given), at,
             [w for w in what if isinstance(w, Unlocked)],

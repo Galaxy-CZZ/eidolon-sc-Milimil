@@ -8,12 +8,12 @@ import { ApiError, type DataPackageImported } from "@/lib/api";
 import { toFailure, type Failure } from "@/lib/failure";
 
 /** 数据包里可能有的几类，按清单里的顺序。照片挂在对话下面，不带对话就不带照片。 */
-export const CATEGORIES = ["conversations", "photos", "memories", "profile", "cycles"] as const;
+export const CATEGORIES = ["conversations", "photos", "memories", "profile", "cycles", "letters"] as const;
 
 export type Category = (typeof CATEGORIES)[number];
 
 /** 这一版能读的最新格式，和后端 `data_package.FORMAT` 一样。 */
-export const FORMAT = 3;
+export const FORMAT = 5;
 
 const MANIFEST = "manifest.json";
 
@@ -130,7 +130,7 @@ function fromManifest(decoder: TextDecoder, chunks: Uint8Array[]): ManifestReadi
   return { kind: "package", categories: CATEGORIES.filter((category) => categories.includes(category)) };
 }
 
-/** 导入完的一句话：导入了什么（只算这次新加的），跳过了和谁的几段对话、几条周期记录。 */
+/** 导入完的一句话：导入了什么（只算这次新加的），跳过了和谁的几段对话、几条周期记录、几封信。 */
 export function importSummary(result: DataPackageImported): string {
   const t = copy.settings.dataPackage;
   const counts = [
@@ -138,6 +138,7 @@ export function importSummary(result: DataPackageImported): string {
     result.photos > 0 && t.count.photos(result.photos),
     result.memories > 0 && t.count.memories(result.memories),
     result.cycles > 0 && t.count.cycles(result.cycles),
+    result.letters > 0 && t.count.letters(result.letters),
   ].filter((count): count is string => Boolean(count));
   let imported: string;
   if (counts.length === 0) imported = result.profile ? t.importedProfile : t.nothingNew;
@@ -147,7 +148,8 @@ export function importSummary(result: DataPackageImported): string {
     const skipped = result.skipped.map((s) => t.skippedPart(s.character_name, s.conversations)).join(t.separator);
     imported += t.skipped(skipped, result.skipped.length > 1);
   }
-  return result.cycles_skipped > 0 ? imported + t.skippedCycles(result.cycles_skipped) : imported;
+  if (result.cycles_skipped > 0) imported += t.skippedCycles(result.cycles_skipped);
+  return result.letters_skipped > 0 ? imported + t.skippedLetters(result.letters_skipped) : imported;
 }
 
 /**

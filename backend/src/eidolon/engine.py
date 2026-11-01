@@ -22,10 +22,11 @@ told as past or still to come by the day it is where the user is, the day the pr
 The two open the prompt, with how she is to format her reply, as a system message of their
 own, the same for every user's turns with her that day, marked for the service to cache;
 who the producer is follows in another, then the conversation so far. What changes from
-turn to turn (the time, her affinity, what retrieval found) comes after the conversation,
-in a system message just before what the user is saying now, and is not carried into the
-turns after it: so each turn's prompt opens as the one before it did, up to the end of the
-conversation so far, marked for the service to cache too (ADR-0020).
+turn to turn (the time, her affinity, the letters she wrote the producer last, what retrieval
+found) comes after the conversation, in a system message just before what the user is saying
+now, and is not carried into the turns after it: so each turn's prompt opens as the one
+before it did, up to the end of the conversation so far, marked for the service to cache too
+(ADR-0020).
 
 The chat model reads at least as many of the latest turns as the deployer says, but they
 are cut back only every so often, so what it reads opens the same way for a while
@@ -128,15 +129,18 @@ from eidolon.config import FishAudioModel, ImageSettings
 from eidolon.cycles import HerDays
 from eidolon.data_access import Database
 from eidolon.gift_catalog import Gift
-from eidolon.happenings import Happenings, Rewarded
+from eidolon.happenings import Happenings, Open, Rewarded
 from eidolon.her_cycle import HerDay, Period, Premenstrual
 from eidolon.her_now import HerNow, KnownNow, Occasion
+from eidolon.her_weather import KnownWeather
 from eidolon.judge import JudgeError
+from eidolon.letter_prompt import Earlier, letters_section, read_earlier
 from eidolon.llm import ChatLLM, ChatMessage, Reasoning, Tool, ToolCall, TurnLLMs
 from eidolon.memory import Memories, last_turn_query
 from eidolon.own_keys import OwnKeyFailed
 from eidolon.photos import CANNOT_SEND, NOT_RECEIVED, Eligibility, Photos, photo_turn
 from eidolon.producer import ProducerProfile, effective_timezone, local_date, producer_prompt
+from eidolon.recent_moments import moments_section
 from eidolon.reply_format import (
     format_instructions,
     PhotoTagged,
@@ -239,6 +243,8 @@ class InCall:
 
     out_of_line: int = 0
     hurts: tuple[float, ...] = ()
+    connected_at: datetime | None = None
+    """When the call connected, as the clock told: they were last in touch before it."""
 
 
 @dataclass(frozen=True)
@@ -395,7 +401,9 @@ class _BeforeAsking:
     whether she has ended the conversation, her character, the conversation's record, when
     the user and she were last in touch (None in a call, where she knows they are talking),
     her affinity as it begins, what it may send for a photo (None for a reach-out), and the
-    producer profile."""
+    producer profile; and when they were last in touch apart, as the weather has it
+    (`her_weather`): in a call, before it connected (None if never); and the letters she
+    wrote the user last, the earliest first (`letter_prompt.read_earlier`)."""
 
     ended: bool
     character: Character
@@ -404,6 +412,8 @@ class _BeforeAsking:
     affinity: Status | None
     eligibility: Eligibility | None
     profile: ProducerProfile
+    last_apart: datetime | None = None
+    letters: Sequence[Earlier] = ()
 
 
 @dataclass
@@ -516,9 +526,9 @@ def narrations(
     return told
 
 
-REACH_OUT_RULES = """# 先开口
+_REACH_OUT_RULES = """# 先开口
 制作人这会儿没在和你说话，你想先给他发几句。
-- 由头你自己挑：先接着你们最近聊过的事，或者他最近的近况；其次是你这周的工作（如果有）；再其次才是现在的时间、他的生日。
+- 由头你自己挑：先接着你们最近聊过的事，或者他最近的近况；其次是你这周的工作（如果有）；{moments}再其次才是现在的时间、他的生日。
 - 别人的生日、节假日、往年今天的演出不拿来当由头；组合伙伴的生日可以顺口提一句。
 - 不要只发一句空的问候，比如「早安」「在吗」「想你了」，要有具体想说的事。
 - 写一到两段。
@@ -526,12 +536,36 @@ REACH_OUT_RULES = """# 先开口
 - 说到你自己那边：日程里有的就说日程里的；没有的话只说练习、拍摄、事务所的工作这类平常的事，或者世界设定里快到的 live 和新歌，已经过去的只当回忆说，先对照现在的年份；不要编具体的剧情，也不要说别的偶像做了什么。
 - 不发照片，也不说要给他发照片、要给他打电话。
 - 让他好接话，但不必用问句结尾。"""
+
+REACH_OUT_RULES = _REACH_OUT_RULES.format(moments="")
 """How she is to reach out (GLOSSARY.md「搭话」), told her last in what changes from turn to turn,
 where what retrieval finds would be."""
+
+REACH_OUT_RULES_WITH_MOMENTS = _REACH_OUT_RULES.format(
+    moments="然后是你最近发的朋友圈（比如问他看到没有）；"
+)
+"""How she is to reach out with her latest moments to tell (`recent_moments`), as she may
+reach out about them too."""
 
 WANTS_TO_REACH_OUT = "（制作人这会儿没在和你说话。你想先给他发几句。）"
 """Where the user's words would be as she reaches out, after the events since the last turn:
 so every protocol takes the prompt, ending with the user, as narration does."""
+
+
+def _moments_told(
+    known: KnownNow, now: datetime, timezone: str, affinity: Status | None
+) -> list[str]:
+    """The section telling her of her latest moments `known` (`recent_moments`), if any, at
+    `now`, the producer in `timezone`, she as `affinity` has her."""
+    section = moments_section(known.moments, now, timezone, affinity and affinity.tier)
+    return [section] if section else []
+
+
+def _letters_told(letters: Sequence[Earlier]) -> list[str]:
+    """The section telling her of the letters she wrote the producer (`letters_section`), if
+    any."""
+    section = letters_section(letters)
+    return [section] if section else []
 
 
 def _since_last_turn(
@@ -631,11 +665,12 @@ class ConversationEngine:
         own_image: ImageSettings | None = None,
     ) -> AsyncGenerator[TurnEvent, None]:
         """Take one turn on `llms`, `in_call` if it is taken in one, its reply voiced with
-        `voiced_by` (None for a text turn's), which has her write delivery cues as it reads
-        them, her photo on the user's `own_image` generation if it brings it. `device_timezone`
-        is the time zone the user's device reports, used unless the producer profile sets
-        one. Once `stop` is set, the turn goes no further and is recorded with the segments
-        complete by then."""
+        `voiced_by` (for a text turn's, the model it would be read aloud with, GLOSSARY.md
+        「朗读」; None if none), which has her write delivery cues as it reads them, her photo
+        on the user's `own_image` generation if it brings it. `device_timezone` is the time
+        zone the user's device reports, used unless the producer profile sets one. Once
+        `stop` is set, the turn goes no further and is recorded with the segments complete by
+        then."""
         text = text.strip()
         yield UserSaid(text)
         if not text or len(text) > MAX_INPUT_LENGTH:
@@ -681,7 +716,7 @@ class ConversationEngine:
             conversation.user_id, conversation.character_id, device_timezone, occasion
         )
         read = await self._db.read(
-            self._before_turn, conversation, in_call is not None, photo.own, self._affinity_on
+            self._before_turn, conversation, in_call, photo.own, self._affinity_on
         )
         if read.ended:
             yield TurnRejected(ENDED)
@@ -690,6 +725,10 @@ class ConversationEngine:
             read.character, read.record, read.last_contact, read.affinity, read.eligibility,
             read.profile,
         )
+        # Fetched as she is retrieved for, and waited on only then.
+        weather = asyncio.ensure_future(self._her_now.weather(
+            occasion, profile.city, self._clock(), read.last_apart
+        ))
         # Said after reading the record, so an event this turn's prompt does not tell of
         # comes before the turn, and is told of with its words from the next turn on.
         said_at = timestamp()
@@ -726,9 +765,12 @@ class ConversationEngine:
                 await judged_apart if judged_apart is not None
                 else (retrieved.judged, retrieved.photo)
             )
+            known_weather = await weather
         finally:
             if judged_apart is not None and not judged_apart.done():
                 judged_apart.cancel()
+            if not weather.done():
+                weather.cancel()
         now = self._clock()
         cools = await self._cools(conversation, judged)
         if in_call is not None:
@@ -765,8 +807,11 @@ class ConversationEngine:
             narrations(record, self._gift_catalog, timezone, her_days),
             [
                 self._now_section(
-                    known, occasion, now, timezone, profile, last_contact, affinity_lines
+                    known, occasion, now, timezone, profile, last_contact, affinity_lines,
+                    known_weather,
                 ),
+                *_moments_told(known, now, timezone, affinity),
+                *_letters_told(read.letters),
                 *([about_photo] if about_photo else []),
             ],
             [p for p in (retrieved.memories_prompt, retrieved.prompt) if p],
@@ -874,15 +919,19 @@ class ConversationEngine:
             unwell and unwell.shown(),
         )
 
-    async def reach_out(self, conversation: Conversation, llm: ChatLLM) -> list[Segment]:
+    async def reach_out(
+        self, conversation: Conversation, llm: ChatLLM, voiced_by: FishAudioModel | None = None
+    ) -> list[Segment]:
         """What she says first in `conversation`, the user not talking to her (GLOSSARY.md
-        「搭话」), on `llm`: its segments, as the model wrote them, delivery cues and all. Her
+        「搭话」), on `llm`: its segments, as the model wrote them, delivery cues and all, as
+        `voiced_by` reads them, the model it would be read aloud with (None if none). Her
         prompt is laid out as a text turn's (ADR-0020), and opens as the next one's will, but
         for what changes from turn to turn: she is told what time it is and that they are not
-        talking and when they last were, how she speaks in her tier, the memories she reaches
-        out with (`Memories.for_reaching_out`), and how to reach out; then, where the user's
-        words would be, the events and her reach-outs since the last turn and that she wants
-        to say something first. Nothing else is retrieved, no tool offered, nothing judged.
+        talking and when they last were, how she speaks in her tier, her latest moments, if any
+        (`recent_moments`), the letters she wrote them last, if any, the memories she reaches
+        out with (`Memories.for_reaching_out`), and how to reach out, about her moments too if
+        told of any; then, where the user's words would be, the events and her reach-outs
+        since the last turn and that she wants to say something first. Nothing else is retrieved, no tool offered, nothing judged.
         Raises EmptyReply if the model says nothing she could say, and whatever the model
         raises."""
         known = await self._her_now.read(
@@ -895,6 +944,7 @@ class ConversationEngine:
         messages = [entry for entry in record if isinstance(entry, Message)]
         timezone = effective_timezone(profile, None)
         now = self._clock()
+        known_weather = await self._her_now.weather("apart", profile.city, now, last_contact)
         world_prompt = (
             self._world.prompt(character.name, local_date(now, timezone)) if self._world else None
         )
@@ -904,16 +954,23 @@ class ConversationEngine:
         memories = await self._memory.for_reaching_out(
             conversation, timezone, last_turn_query(messages)
         )
+        moments = _moments_told(known, now, timezone, affinity)
         prompt = self._prompt(
             character, world_prompt, producer_prompt(profile),
             chat_history(messages, self._history_turns()), told,
             [
                 self._now_section(
-                    known, "apart", now, timezone, profile, last_contact, tier_prompt(affinity)
+                    known, "apart", now, timezone, profile, last_contact, tier_prompt(affinity),
+                    known_weather,
                 ),
+                *moments,
+                *_letters_told(read.letters),
             ],
-            [*([memories] if memories else []), REACH_OUT_RULES],
-            WANTS_TO_REACH_OUT, None,
+            [
+                *([memories] if memories else []),
+                REACH_OUT_RULES_WITH_MOMENTS if moments else REACH_OUT_RULES,
+            ],
+            WANTS_TO_REACH_OUT, voiced_by,
         )
         parser = ReplyParser()
         stream = llm.stream(prompt)
@@ -933,7 +990,7 @@ class ConversationEngine:
         self,
         db: sqlite3.Connection,
         conversation: Conversation,
-        in_call: bool,
+        in_call: InCall | None,
         own_image: ImageSettings | None,
         affinity_on: bool,
     ) -> _BeforeAsking:
@@ -941,8 +998,9 @@ class ConversationEngine:
         read: `in_call` if it is taken in one, bringing the user's `own_image` generation if
         any, her affinity if `affinity_on`."""
         return self._read_before_asking(
-            db, conversation, in_call=in_call, own_image=own_image, sends_photo=True,
-            affinity_on=affinity_on,
+            db, conversation, in_call=in_call is not None, own_image=own_image,
+            sends_photo=True, affinity_on=affinity_on,
+            connected_at=in_call.connected_at if in_call is not None else None,
         )
 
     def _before_reaching_out(
@@ -964,21 +1022,30 @@ class ConversationEngine:
         own_image: ImageSettings | None,
         sends_photo: bool,
         affinity_on: bool,
+        connected_at: datetime | None = None,
     ) -> _BeforeAsking:
         """What a turn or a reach-out in `conversation` reads before she is asked, through
         `db`: what it may send for a photo only if it `sends_photo`, her affinity only if
-        `affinity_on`, as told on the event loop as it was handed in."""
+        `affinity_on`, as told on the event loop as it was handed in; in a call that
+        `connected_at` then, when they were last in touch before it."""
         character = self._characters[conversation.character_id]
+        user_id, character_id = conversation.user_id, conversation.character_id
+        last_contact = None if in_call else read_last_contact(db, user_id, character_id)
+        last_apart = (
+            read_last_contact(db, user_id, character_id, before=connected_at)
+            if in_call and connected_at is not None else last_contact
+        )
         return _BeforeAsking(
             read_ended(db, conversation.id) is not None,
             character,
             read_record(db, conversation.id),
-            None if in_call
-            else read_last_contact(db, conversation.user_id, conversation.character_id),
+            last_contact,
             self._affinity(db, conversation) if affinity_on else None,
             self._photo_eligibility(db, conversation, character, own_image)
             if sends_photo else None,
             read_profile(db, conversation.user_id),
+            last_apart,
+            read_earlier(db, user_id, character_id),
         )
 
     def _photo_eligibility(
@@ -1052,7 +1119,7 @@ class ConversationEngine:
                 self._record,
                 conversation, text, said_at, reply, judged, affinity, typed, ends_conversation,
                 NewPhoto(photo.id, photo.tag) if photo.id else None,
-                self._happenings is not None and self._happenings.open, her_day,
+                self._happenings and self._happenings.open, her_day,
             )
         except Exception:
             if photo.id is not None and self._photos is not None:
@@ -1082,7 +1149,7 @@ class ConversationEngine:
         typed: Typed | None,
         ends_conversation: bool,
         photo: NewPhoto | None,
-        happenings_open: bool,
+        happenings_open: Open | None,
         her_day: HerDay,
     ) -> tuple[Message, Status | None, Rewarded | None, ConversationEvent | None]:
         """Record the turn, as said at `said_at`, through `db`, in one transaction with all
@@ -1090,7 +1157,8 @@ class ConversationEngine:
         it be the user's first turn with her in it (`add_unwell`), her affinity as `judged`
         says, if judged, with what a typed turn came to, her ending the conversation after
         it if she does, the photo she sends with it if any, and what it counts towards
-        (`Happenings.turn_recorded`), if `happenings_open`, all of it or none.
+        (`Happenings.turn_recorded`), with what is `happenings_open` as it was handed in,
+        all of it or none.
         The reply, her affinity after it (`affinity`, as the turn began, if not judged),
         what it was rewarded with, and her being unwell, if recorded."""
         unwell = (
@@ -1105,9 +1173,12 @@ class ConversationEngine:
         message = add_turn(
             db, conversation.id, text, reply, change, said_at, typed, ends_conversation, photo
         )
-        rewarded = self._happenings and self._happenings.turn_recorded(
-            db, conversation.user_id, conversation.character_id, affinity and affinity.tier,
-            happenings_open,
+        rewarded = (
+            self._happenings.turn_recorded(
+                db, conversation.user_id, conversation.character_id,
+                affinity and affinity.tier, happenings_open,
+            )
+            if self._happenings is not None and happenings_open is not None else None
         )
         return message, affinity, rewarded, unwell
 
@@ -1129,10 +1200,12 @@ class ConversationEngine:
         profile: ProducerProfile,
         last_contact: datetime | None,
         affinity_lines: Sequence[str],
+        known_weather: KnownWeather | None = None,
     ) -> str:
         """The prompt section of what she knows of now on `occasion` (`HerNow.lines`)."""
         return "\n".join(self._her_now.lines(
-            known, occasion, now, timezone, profile, last_contact, affinity_lines
+            known, occasion, now, timezone, profile, last_contact, affinity_lines,
+            known_weather=known_weather,
         ))
 
     def _prompt(

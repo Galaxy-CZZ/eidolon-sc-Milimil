@@ -63,6 +63,7 @@ async def test_a_database_from_then_forgets_the_switch_and_the_letting_and_keeps
         assert (await details(upgraded, producer_id))["limits"] == {
             "turns_per_hour": "unlimited", "calls_per_hour": None, "note": "老数据",
             "updated_at": START.isoformat(), "photos_per_hour": None, "visits_per_hour": None,
+            "read_alouds_per_hour": None,
         }, start
         limits = (await upgraded.get("/api/admin/config")).json()["limits"]
         assert limits["override"] == {"turns_per_hour": 3}, start

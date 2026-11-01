@@ -51,7 +51,7 @@ async def test_her_reach_outs_move_to_another_deployment_as_they_were_and_seen(
 
     package = await export(here, "conversations")
     _, manifest, data = unzipped(package)
-    assert manifest["format"] == 3
+    assert manifest["format"] == 5
     [packaged] = data["conversations"][0]["reach_outs"]
     assert packaged == PACKAGED_REACH_OUT | {"created_at": packaged["created_at"]}
     res = await import_package(there, package, "conversations")

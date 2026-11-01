@@ -368,10 +368,15 @@ class Memories:
         return [candidates[i] for i, score in best if score >= min_relevance][:MAX_FOUND]
 
     async def for_reaching_out(
-        self, conversation: Conversation, timezone: str, last_turn: str | None
+        self,
+        conversation: Conversation,
+        timezone: str,
+        last_turn: str | None,
+        posting: bool = False,
     ) -> str | None:
         """The prompt section carrying the memories she reaches out with in `conversation`,
-        whose user is in `timezone` (GLOSSARY.md「搭话」): of those the user told her herself
+        whose user is in `timezone` (GLOSSARY.md「搭话」), or, `posting`, posts a moment with
+        (GLOSSARY.md「朋友圈」), told only to echo them: of those the user told her herself
         that still hold, those relevant to `last_turn`, as a turn finds them (`last_turn_query`),
         then as many as `MAX_LATEST` of the latest written down within `LATELY`, each once;
         None if there are none, or memory is off."""
@@ -400,7 +405,8 @@ class Memories:
         recalled = [*found, *(m for m in reversed(latest) if m.id not in ids)]
         character = self._characters[character_id]
         return (
-            _memories_prompt(recalled, character, timezone, _REACHING_OUT) if recalled else None
+            _memories_prompt(recalled, character, timezone, _POSTING if posting else _REACHING_OUT)
+            if recalled else None
         )
 
     async def _nearest(
@@ -898,6 +904,11 @@ _REACHING_OUT = (
     "挑一两件自然地提起，不要逐条复述。"
 )
 
+_POSTING = (
+    "下面是制作人以前对你说过的事：先是和你们上次聊的可能有关的，再是制作人这两周的近况。"
+    "朋友圈大家都看得到：最多隐约呼应一件，不要复述，他私下告诉你的事不要点明。"
+)
+
 
 def _holding(memories: Sequence[Memory], character_id: str | None = None) -> list[Memory]:
     """Those of `memories` that still hold, only those told to `character_id` if given."""
@@ -928,3 +939,11 @@ def _memories_prompt(
 
 def _date(moment: datetime) -> str:
     return f"{moment.year}年{moment.month}月{moment.day}日"
+
+
+def posting_memories_prompt(
+    memories: Sequence[Memory], character: Character, timezone: str
+) -> str:
+    """The prompt section carrying `memories` as she posts a moment with them, in the order
+    given, the user in `timezone`: as `Memories.for_reaching_out` writes it, `posting`."""
+    return _memories_prompt(memories, character, timezone, _POSTING)

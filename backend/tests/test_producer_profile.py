@@ -40,13 +40,14 @@ async def test_profile_belongs_to_the_user_not_the_device(make_client: ClientFac
     assert res.status_code == 200
 
     phone = await make_client(FakeLLM()).get("/api/profile")
-    assert phone.json() == profile
+    assert phone.json() == {**profile, **NO_CITY}
     friend = await make_client(FakeLLM(), "friend").get("/api/profile")
     assert friend.json() == {
         "form_of_address": None,
         "gender": None,
         "timezone": None,
         "birthday": None,
+        **NO_CITY,
     }
 
 
@@ -57,6 +58,8 @@ FULL_PROFILE = {
     "birthday": {"month": 5, "day": 3},
 }
 EMPTY_PROFILE = {"form_of_address": None, "gender": None, "timezone": None, "birthday": None}
+NO_CITY = {"city": None, "finds_cities": False}
+"""What the profile is answered with besides, without a city or the deployer's QWeather."""
 
 
 async def test_clearing_a_field_restores_its_default(make_client: ClientFactory):
@@ -68,8 +71,8 @@ async def test_clearing_a_field_restores_its_default(make_client: ClientFactory)
         json={"form_of_address": "  ", "gender": None, "timezone": None, "birthday": None},
     )
 
-    assert res.json() == EMPTY_PROFILE
-    assert (await client.get("/api/profile")).json() == EMPTY_PROFILE
+    assert res.json() == {**EMPTY_PROFILE, **NO_CITY}
+    assert (await client.get("/api/profile")).json() == {**EMPTY_PROFILE, **NO_CITY}
 
 
 @pytest.mark.parametrize(
@@ -119,7 +122,7 @@ async def test_a_birthday_that_is_no_day_of_the_year_is_rejected(
     res = await client.put("/api/profile", json={**FULL_PROFILE, "birthday": birthday})
 
     assert res.status_code == 422
-    assert (await client.get("/api/profile")).json() == FULL_PROFILE
+    assert (await client.get("/api/profile")).json() == {**FULL_PROFILE, **NO_CITY}
 
 
 async def test_profile_needs_a_session(make_client: ClientFactory):
@@ -271,7 +274,7 @@ async def test_a_profile_saved_before_birthdays_keeps_working(
 
     upgraded = make_client(FakeLLM())
 
-    assert (await upgraded.get("/api/profile")).json() == {**old, "birthday": None}
+    assert (await upgraded.get("/api/profile")).json() == {**old, "birthday": None, **NO_CITY}
     res = await upgraded.put("/api/profile", json={**old, "birthday": {"month": 5, "day": 3}})
     assert res.status_code == 200
     assert (await upgraded.get("/api/profile")).json()["birthday"] == {"month": 5, "day": 3}

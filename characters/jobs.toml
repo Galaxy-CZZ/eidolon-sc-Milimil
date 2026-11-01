@@ -11,6 +11,8 @@
 #   length    占几个时间段：1、2 或 3（3 就是一整天，只能从上午排）
 #   slots     只能排在哪些时段（可选，不填就是哪段都行）：morning（上午）、afternoon（下午）、
 #             evening（晚上）的列表；只给明显不合理的几项加，三段的不能加
+#   places    会去哪类地方（可选，不填的那条动态不带地名）：地点池 places.toml 里的类别列表，
+#             演出场馆 venue 除外；写 nearby 是去近郊，哪类都行，只挑东京都以外的地点
 #
 # 清单里不出现「演出」二字：演出只指现实中的 live。
 
@@ -70,6 +72,7 @@ name = "晨跑"
 note = "沿着河边慢跑一圈，顺便练呼吸。"
 category = "practice"
 length = 1
+places = ["park"]
 slots = ["morning"]
 
 [[jobs]]
@@ -135,6 +138,7 @@ name = "外景拍摄"
 note = "去海边拍外景，天气好的时候要抓紧。"
 category = "appearance"
 length = 3
+places = ["seaside"]
 
 [[jobs]]
 id = "music-video-shoot"
@@ -164,6 +168,7 @@ name = "夜景拍摄"
 note = "在街上拍一组夜景写真。"
 category = "appearance"
 length = 1
+places = ["night-view", "shopping-street"]
 slots = ["evening"]
 
 # 事务
@@ -245,6 +250,7 @@ name = "逛街"
 note = "去商店街逛逛，买点想要的小东西。"
 category = "private"
 length = 1
+places = ["shopping-street", "fashion-street", "mall"]
 
 [[jobs]]
 id = "cafe"
@@ -252,6 +258,7 @@ name = "去咖啡馆"
 note = "找一家安静的咖啡馆坐一坐。"
 category = "private"
 length = 1
+places = ["cafe"]
 
 [[jobs]]
 id = "dinner-out"
@@ -259,6 +266,7 @@ name = "出去吃饭"
 note = "和朋友出去吃晚饭。"
 category = "private"
 length = 1
+places = ["cafe"]
 slots = ["evening"]
 
 [[jobs]]
@@ -274,6 +282,7 @@ name = "看电影"
 note = "去电影院看一部最近上映的电影。"
 category = "private"
 length = 1
+places = ["mall"]
 slots = ["afternoon", "evening"]
 
 [[jobs]]
@@ -282,6 +291,7 @@ name = "一日游"
 note = "坐电车去附近的城市玩一整天。"
 category = "private"
 length = 3
+places = ["nearby"]
 
 [[jobs]]
 id = "family-time"
@@ -303,6 +313,7 @@ name = "去公园散步"
 note = "在公园里散散步，晒晒太阳。"
 category = "private"
 length = 1
+places = ["park"]
 slots = ["morning", "afternoon"]
 
 [[jobs]]
@@ -311,3 +322,4 @@ name = "做喜欢的事"
 note = "花半天时间做自己的爱好。"
 category = "private"
 length = 2
+places = ["cafe", "park", "shrine", "shopping-street", "fashion-street", "books", "mall", "seaside", "amusement", "museum", "night-view", "bath", "seasonal"]

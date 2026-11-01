@@ -221,7 +221,7 @@ class CallOutcome:
     @property
     def in_call(self) -> InCall:
         """What the call's next turn is told of it."""
-        return InCall(self._out_of_line, tuple(self._hurts))
+        return InCall(self._out_of_line, tuple(self._hurts), self._connected_by_clock)
 
     def time_up(self) -> dict | None:
         """The call's time is up, `time_limit` after it connected."""
