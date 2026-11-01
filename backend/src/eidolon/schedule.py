@@ -93,6 +93,13 @@ FIRST_WEEK = date(2026, 1, 5)
 ROTATION = 4
 """How many weeks make a round, in which every idol has one."""
 
+OPEN_WEEKS = 3
+"""How many weeks the producer may lay out at once: this one, and the two after it.
+
+The weeks' jobs are drawn as they are first read, so a week read early is drawn early and
+kept; what it holds does not change once they are drawn. Publishing each week on its own
+Monday kept a producer from planning past the weekend (`.scratch/nsfw/`)."""
+
 JOBS_EACH = (2, 3)
 """How many jobs each idol of the week may be given."""
 
@@ -203,11 +210,18 @@ class Week:
 
 @dataclass(frozen=True)
 class ScheduleView:
-    """The producer's week, and the next once published, in their time zone."""
+    """The producer's weeks, to be laid out at once, in their time zone: this one, and the
+    `OPEN_WEEKS - 1` after it. `next_week` is kept for what still reads it."""
 
     timezone: str
     this_week: Week
-    next_week: Week | None
+    weeks: tuple[Week, ...] = ()
+
+    @property
+    def next_week(self) -> Week | None:
+        """The week after this one, if it is open: what the page showed before there were
+        three."""
+        return self.weeks[0] if self.weeks else None
 
     def shown(self) -> dict:
         return {
@@ -215,6 +229,7 @@ class ScheduleView:
             "timezone": self.timezone,
             "this_week": self.this_week.shown(),
             "next_week": self.next_week and self.next_week.shown(),
+            "weeks": [week.shown() for week in (self.this_week, *self.weeks)],
         }
 
 
@@ -300,6 +315,15 @@ def week_of(now: datetime) -> date:
 def published_at(week: date) -> datetime:
     """When `week`'s jobs are published: its Monday's 0:00 in Beijing, in UTC."""
     return datetime.combine(week, time(), ZoneInfo(DAY_TIMEZONE)).astimezone(UTC)
+
+
+def opens_at(week: date) -> datetime:
+    """When the producer may first lay `week` out: `OPEN_WEEKS` weeks of it at a time.
+
+    The week, and the ones after it up to `OPEN_WEEKS`, open together on the Monday of the
+    first of them — so this week, next week and the week after are all there to fill in from
+    the start of this week."""
+    return published_at(week - timedelta(days=DAYS * (OPEN_WEEKS - 1)))
 
 
 def draw_week(
@@ -564,6 +588,59 @@ class Schedules:
             self._save, user_id, week, list(placements), device_timezone, self._clock()
         )
 
+    async def unsave(
+        self, user_id: str, week: date, job_ids: Sequence[str], device_timezone: str | None
+    ) -> ScheduleView:
+        """Take `job_ids` out of the user's `week`, so that the slots they held are free
+        again. Raises ScheduleClosed while schedules are off.
+
+        A week once saved could not be laid out again: there was no route to take anything
+        out, so a job put on the wrong day stayed there (`ALREADY_SAVED` refused the move,
+        `.scratch/nsfw/`)."""
+        if not self._is_on():
+            raise ScheduleClosed()
+        return await self._db.write(
+            self._unsave, user_id, week, list(job_ids), device_timezone, self._clock()
+        )
+
+    def _unsave(
+        self,
+        db: sqlite3.Connection,
+        user_id: str,
+        week: date,
+        job_ids: list[str],
+        device_timezone: str | None,
+        now: datetime,
+    ) -> ScheduleView:
+        """Take those of `job_ids` out that have not begun.
+
+        A slot begun or past takes none (`why_not`): taking one out would leave a job that
+        cannot be put back anywhere, and a job that has begun is no longer a plan but a
+        thing that happened — `schedule_placements` is where her day is kept, and `done`
+        counts from it."""
+        timezone, local = _local(db, user_id, device_timezone, now)
+        this_week = monday_of(local.date())
+        jobs = {j.id: j for j in (_jobs(db, week) or [])}
+        for placement in _placements(db, user_id, week):
+            if placement.job_id not in job_ids:
+                continue
+            job = jobs.get(placement.job_id)
+            if job is None:
+                continue
+            begun = any(
+                time_of(local, this_week, week, placement.day, slot) in ("now", "past")
+                for slot in range(placement.slot, placement.slot + job.length)
+            )
+            if begun:
+                continue
+            db.execute(
+                "DELETE FROM schedule_placements WHERE user_id = ? AND week = ? AND job_id = ?",
+                (user_id, week.isoformat(), placement.job_id),
+            )
+        view = self._read(db, user_id, device_timezone, now, counting=False, writing=True)
+        assert view is not None
+        return view
+
     async def scheduled_this_week(self) -> int:
         """How many users have saved any of the week Beijing is in."""
         return await self._db.read(_count_scheduled, week_of(self._clock()))
@@ -585,8 +662,13 @@ class Schedules:
         if counting and not self._counted(db, user_id, local, this_week, writing):
             return None
         weeks = []
-        for week in (this_week, this_week + timedelta(days=DAYS)):
-            published = now >= published_at(week)
+        # This week by its own Monday, as ever; the two after it from the Monday of this one
+        # (`opens_at`), so that they are filling in before they begin. Not before this week
+        # opens at all: a group is laid out together or not yet.
+        this_open = now >= published_at(this_week)
+        for step in range(OPEN_WEEKS):
+            week = this_week + timedelta(days=DAYS * step)
+            published = this_open and (step == 0 or now >= opens_at(week))
             jobs = _jobs(db, week) if published else []
             if published and not jobs:
                 if not writing:
@@ -596,8 +678,7 @@ class Schedules:
                 week, published_at(week), jobs,
                 _placements(db, user_id, week) if published else [], published,
             ))
-        this, following = weeks
-        return ScheduleView(timezone, this, following if following.published else None)
+        return ScheduleView(timezone, weeks[0], tuple(weeks[1:]))
 
     def _hers(
         self,
@@ -696,22 +777,28 @@ class Schedules:
     ) -> Saved:
         _, local = _local(db, user_id, device_timezone, now)
         this_week = monday_of(local.date())
-        published = now >= published_at(week)
+        # Open from the Monday of this week, not of its own, as the page reads them.
+        published = week <= this_week or now >= opens_at(week)
         # Saved into before anyone read it, the week is drawn here.
         jobs = {j.id: j for j in (_jobs(db, week) or self._draw(db, week))} if published else {}
-        placed = _placements(db, user_id, week)
-        saved_ids = {p.job_id for p in placed}
-        taken = {cell for p in placed for cell in _cells(p, jobs[p.job_id])}
+        placed = {p.job_id: p for p in _placements(db, user_id, week)}
+        taken = {cell for p in placed.values() for cell in _cells(p, jobs[p.job_id])}
         saved: list[Placement] = []
         returned: list[tuple[Placement, str]] = []
         for p in placements:
             job = jobs.get(p.job_id)
+            before = placed.get(p.job_id)
+            # Moved, it gives up the cells it had: what it is set to is judged against the
+            # rest of her week, not against where it was (`ALREADY_SAVED` used to refuse the
+            # move outright, so a week once saved could not be laid out again).
+            if before is not None:
+                taken -= {cell for cell in _cells(before, job)} if job else set()
             if not published:
                 why = NOT_PUBLISHED
             elif job is None:
                 why = NOT_THIS_WEEK
-            elif p.job_id in saved_ids:
-                why = ALREADY_SAVED
+            elif before is not None and before.day == p.day and before.slot == p.slot:
+                why = ALREADY_SAVED  # where it already is: nothing to do
             else:
                 why = why_not(
                     job, p.day, p.slot,
@@ -719,16 +806,25 @@ class Schedules:
                     lambda day, slot: (day, slot) in taken,
                 )
             if why is not None:
+                if before is not None and job is not None:
+                    taken.update(_cells(before, job))  # left where it was
                 returned.append((p, why))
                 continue
             assert job is not None
-            db.execute(
-                "INSERT INTO schedule_placements (user_id, week, job_id, day, slot, saved_at)"
-                " VALUES (?, ?, ?, ?, ?, ?)",
-                (user_id, week.isoformat(), p.job_id, p.day, p.slot, now.isoformat()),
-            )
+            if before is not None:
+                db.execute(
+                    "UPDATE schedule_placements SET day = ?, slot = ?, saved_at = ?"
+                    " WHERE user_id = ? AND week = ? AND job_id = ?",
+                    (p.day, p.slot, now.isoformat(), user_id, week.isoformat(), p.job_id),
+                )
+            else:
+                db.execute(
+                    "INSERT INTO schedule_placements (user_id, week, job_id, day, slot, saved_at)"
+                    " VALUES (?, ?, ?, ?, ?, ?)",
+                    (user_id, week.isoformat(), p.job_id, p.day, p.slot, now.isoformat()),
+                )
             saved.append(p)
-            saved_ids.add(p.job_id)
+            placed[p.job_id] = p
             taken.update(_cells(p, job))
         return Saved(saved, returned)
 

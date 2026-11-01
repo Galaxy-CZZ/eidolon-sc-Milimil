@@ -39,7 +39,15 @@ export type Placement = { job_id: string; day: number; slot: number };
 export type Week = { id: string; published: boolean; published_at: string; jobs: Job[]; placements: Placement[] };
 
 /** 日程开着时读到的：有效时区（`timeOf` 按它算），本周和已发布的下周。 */
-export type OpenSchedule = { enabled: true; timezone: string; this_week: Week; next_week: Week | null };
+export type OpenSchedule = {
+  enabled: true;
+  timezone: string;
+  this_week: Week;
+  /** 本周之后的几周，一起排（`OPEN_WEEKS - 1`）。 */
+  weeks?: Week[];
+  /** `weeks` 的第一项，读旧版接口时才有。 */
+  next_week: Week | null;
+};
 
 /** 读日程接口给的；部署关着日程时只有 `enabled: false`。 */
 export type Schedule = { enabled: false } | OpenSchedule;
@@ -66,6 +74,17 @@ export async function saveSchedule(week: string, placements: readonly Placement[
   );
 }
 
+/** 把 `week` 这几项工作从日程里拿掉，空出它们占着的时间段：换一天，或者整周重排。 */
+export async function unsaveSchedule(week: string, jobs: readonly string[]): Promise<OpenSchedule> {
+  return json(
+    await api(`/api/schedule/weeks/${encodeURIComponent(week)}`, {
+      method: "DELETE",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ jobs }),
+    }),
+  );
+}
+
 /** 排日程时看的一周：读到的这一周（工作和保存过的放置）、这台设备上的草稿，和此刻在制作人那边。 */
 export type Board = { week: Week; drafts: readonly Placement[]; now: LocalNow };
 
@@ -74,6 +93,9 @@ export type Occupant = { placement: Placement; job: Job; isSaved: boolean };
 
 /** 一周几天。 */
 const DAYS = 7;
+
+/** 一次能排几周：本周，和它后面的两周（`schedule.OPEN_WEEKS`）。 */
+const OPEN_WEEKS = 3;
 
 /** 北京在 UTC 东边几小时（没有夏令时）。 */
 const BEIJING_HOURS = 8;
@@ -423,23 +445,46 @@ export function publishedAt(week: string): Date {
 export function weeksAt(
   timeZone: string,
   now: Date,
-): { thisWeek: string; isPublished: boolean; nextWeek: string | null } {
+): { thisWeek: string; isPublished: boolean; nextWeek: string | null; open: string[] } {
   const thisWeek = localNow(timeZone, now).week;
+  const isPublished = now >= publishedAt(thisWeek);
+  const open: string[] = [];
+  // 本周还没开，这一组就都还不到排的时候：往后的周再早也不算数。
+  for (let step = 0; isPublished && step < OPEN_WEEKS; step += 1) {
+    const week = addDays(thisWeek, DAYS * step);
+    const opens =
+      step === 0
+        ? true
+        : now >= publishedAt(addDays(week, -DAYS * (OPEN_WEEKS - 1)));
+    if (opens) open.push(week);
+  }
   const nextWeek = addDays(thisWeek, DAYS);
   return {
     thisWeek,
-    isPublished: now >= publishedAt(thisWeek),
-    nextWeek: now >= publishedAt(nextWeek) ? nextWeek : null,
+    isPublished,
+    nextWeek: open.includes(nextWeek) ? nextWeek : null,
+    open,
   };
 }
 
-/** 读到的日程在此刻是不是过时了：制作人那边换了周，或者本周、下周的工作在读过以后发布了。 */
+/** 这一组能排的几周：本周，和跟它一起开的后面几周（`OPEN_WEEKS`）。 */
+export function openWeeks(schedule: OpenSchedule): Week[] {
+  return [schedule.this_week, ...(schedule.weeks ?? (schedule.next_week ? [schedule.next_week] : []))];
+}
+
+/** 读到的日程在此刻是不是过时了：制作人那边换了周，或者哪一周在这一组里开没开变了。
+
+    开了几周会随周一一起变（`OPEN_WEEKS`），所以比的是读到的和此刻各自开放的那几周，
+    不是只比下周一个。 */
 export function isOutdated(read: OpenSchedule, now: Date): boolean {
   const weeks = weeksAt(read.timezone, now);
+  const readOpen = [read.this_week, ...(read.weeks ?? [])]
+    .filter((week) => week.published)
+    .map((week) => week.id);
   return (
     weeks.thisWeek !== read.this_week.id ||
     weeks.isPublished !== read.this_week.published ||
-    weeks.nextWeek !== (read.next_week?.id ?? null)
+    weeks.open.join(",") !== readOpen.join(",")
   );
 }
 

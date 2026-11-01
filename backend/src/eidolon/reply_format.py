@@ -19,6 +19,8 @@ anywhere else, between segments or in the middle of her words, or after the firs
 out of the reply as if never written.
 """
 
+import re
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Literal
 
@@ -33,6 +35,9 @@ _FORMAT = """\
 把回复分成段，每段先写日语原文，紧接着写这段的中文字幕，格式如下：
 <ja>日语原文</ja><zh>中文字幕</zh>
 除了这些标签和标签里的内容，不要输出任何其他文字。
+- 标签只能写成 `<ja>` 和 `<zh>` 这两个，短横线后面只有这两个字母：
+  不要写 `<japanese>`、`<chinese>`、`<jp>`、`<cn>`、`<中文>` 或别的写法，那样整段都会作废。
+- 每段一对，`<ja>` 和 `</ja>` 成对，`<zh>` 和 `</zh>` 成对，不要在标签里换行。
 
 # 说话长度
 像真人当面说话那样：接对方一句话，通常只回一两句。
@@ -77,10 +82,35 @@ DIRECTED_FORMAT_INSTRUCTIONS = _FORMAT + _DIRECTED_CUES
 directions as long as a director's (`delivery_cues.TAG_READERS`)."""
 
 
-def format_instructions(voiced_by: FishAudioModel | None) -> str:
+_NAMES = """\
+# 名字怎么译
+这些名字有定好的中文译名，字幕里一律照它写，不要自己音译：
+{names}
+- 她们以外的人名，按常见的中文习惯音译；拿不准就保留原文的假名。
+- 同一个名字在整段对话里写法要一致，不要一会儿一个译法。"""
+
+
+def names_instructions(names: Mapping[str, str]) -> str:
+    """How the names in her subtitles are written: `names`, each as the deployment has it
+    (`characters.Character.name_zh`), so that 「ルカ」 is 「路加」 and not what the model makes
+    of the romaji.
+
+    Kept beside the reply format, as it is the subtitle that carries them; the model heard
+    the romaji only, and wrote 露卡 for ルカ (`.scratch/nsfw/`)."""
+    written = "\n".join(f"- {ja} → {zh}" for ja, zh in names.items())
+    return _NAMES.format(names=written)
+
+
+def format_instructions(
+    voiced_by: FishAudioModel | None, names: Mapping[str, str] | None = None
+) -> str:
     """The reply format, for a turn voiced, or to be read aloud, with `voiced_by`; None for
-    one not voiced at all."""
-    return DIRECTED_FORMAT_INSTRUCTIONS if voiced_by in TAG_READERS else FORMAT_INSTRUCTIONS
+    one not voiced at all. `names` is how her companions are written in the subtitles, if
+    any."""
+    base = DIRECTED_FORMAT_INSTRUCTIONS if voiced_by in TAG_READERS else FORMAT_INSTRUCTIONS
+    if not names:
+        return base
+    return f"{base}\n\n{names_instructions(names)}"
 
 
 @dataclass(frozen=True)
@@ -129,6 +159,21 @@ _TAGS = ("<ja>", "<zh>", f"<{_PHOTO}>")
 class Segment:
     ja: str = ""
     zh: str = ""
+
+
+_KANA = re.compile(r"[\u3040-\u309f\u30a0-\u30ff]")
+_KANA_IN_CUES = re.compile(r"\[[^\]]*\]")
+
+
+def is_japanese(text: str) -> bool:
+    """Whether `text` is Japanese at all: it holds any kana once the delivery cues are set
+    aside.
+
+    Asked of a reply before it is kept, as the model drifts into the language of the history
+    when every turn of it has been Chinese: 「这么晚了，制作人还没睡呀」 came back under `<ja>`
+    for a whole conversation of them (`.scratch/nsfw/`). Tags can be right and the words
+    still wrong; kana is what only Japanese has."""
+    return bool(_KANA.search(_KANA_IN_CUES.sub("", text)))
 
 
 @dataclass

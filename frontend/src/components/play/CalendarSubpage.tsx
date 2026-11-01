@@ -45,8 +45,10 @@ import {
   type Placement,
   returnedNote,
   saveSchedule,
+  unsaveSchedule,
   shortName,
   startedNote,
+  openWeeks,
 } from "@/lib/schedule";
 import { cn } from "@/lib/utils";
 import { herVars } from "@/theme/herVars";
@@ -89,7 +91,8 @@ export function CalendarSubpage({ who }: { who: string | null }) {
   const [month, setMonth] = useState<CalendarMonth | null>(null);
   const [picked, setPicked] = useState<string | null>(null);
   const [kept, setKept] = useState<{ userId: string; mode: CalendarMode } | null>(null);
-  const [isNext, setNext] = useState(false);
+  // 排的是这一组里的第几周：0 是本周，往后是后面的两周（`weeksAt` 的 `open`）。
+  const [weekStep, setWeekStep] = useState(0);
   const [notice, setNotice] = useState<string | null>(null);
   const [failure, setFailure] = useState<Failure | null>(null);
   const [isSaving, setSaving] = useState(false);
@@ -160,7 +163,9 @@ export function CalendarSubpage({ who }: { who: string | null }) {
   );
 
   if (mode === "week" && schedule.enabled && scheduleNow) {
-    const week = isNext && schedule.next_week ? schedule.next_week : schedule.this_week;
+    const open = openWeeks(schedule);
+    const at = Math.min(Math.max(weekStep, 0), Math.max(open.length - 1, 0));
+    const week = open[at] ?? schedule.this_week;
     const board: Board = { week, drafts: draftsOn(week.id), now: scheduleNow };
     const characterOf: CharacterOf = (id) => byId.get(id) ?? { id, name: id, short_name: null, avatar_url: null, color: null };
     const nameOf = (id: string) => characterOf(id).name;
@@ -189,6 +194,24 @@ export function CalendarSubpage({ who }: { who: string | null }) {
       }
     };
 
+    // 保存过的取回来改：先把它从服务器上的日程里拿掉，空出的时间段也就放开了，
+    // 然后再当成草稿放回待排（`.scratch/nsfw/`：以前存下就改不了）。
+    const takeBackSaved = async (jobId: string) => {
+      setFailure(null);
+      setNotice(null);
+      try {
+        await unsaveSchedule(week.id, [jobId]);
+        if (await readSchedule()) {
+          keepDraftsOn(week.id, [
+            ...board.drafts.filter((p) => p.job_id !== jobId),
+          ]);
+        }
+      } catch (e) {
+        if (e instanceof ApiError && e.scheduleClosed) closeSchedule();
+        else setFailure(toFailure(e));
+      }
+    };
+
     return (
       <PlayShell
         header={header(end)}
@@ -203,14 +226,15 @@ export function CalendarSubpage({ who }: { who: string | null }) {
         <ScheduleWeek
           key={week.id}
           board={board}
-          isNext={week === schedule.next_week}
-          hasNext={schedule.next_week !== null}
-          onWeek={setNext}
+          isNext={at > 0}
+          hasNext={at < open.length - 1}
+          onWeek={(forward) => setWeekStep(at + (forward ? 1 : -1))}
           characterOf={characterOf}
           calendar={data}
           who={herId}
           isWide={isWide}
           onDrafts={(drafts) => keepDraftsOn(week.id, drafts)}
+          onTakeBack={takeBackSaved}
         />
       </PlayShell>
     );
@@ -221,7 +245,7 @@ export function CalendarSubpage({ who }: { who: string | null }) {
   const day = picked ?? today;
   const weeks = !schedule.enabled
     ? []
-    : [schedule.this_week, ...(schedule.next_week ? [schedule.next_week] : [])].map((week) => ({
+    : openWeeks(schedule).map((week) => ({
         week,
         drafts: draftsOn(week.id),
       }));

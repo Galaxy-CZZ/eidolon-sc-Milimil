@@ -30,6 +30,11 @@ class SaveInput(BaseModel):
     """Those new in this saving, in the order to save them."""
 
 
+class UnsaveInput(BaseModel):
+    jobs: list[str]
+    """Which of the week's jobs to take back out of the schedule."""
+
+
 def add_schedule_routes(app: FastAPI, backend: Backend) -> None:
     schedules = backend.schedules
 
@@ -58,3 +63,20 @@ def add_schedule_routes(app: FastAPI, backend: Backend) -> None:
             raise HTTPException(404, "没有这一周")
         placements = [Placement(p.job_id, p.day, p.slot) for p in body.placements]
         return (await schedules.save(user_id, monday, placements, device_timezone)).shown()
+
+    @app.delete("/api/schedule/weeks/{week}")
+    async def unsave(
+        week: str, body: UnsaveInput, user_id: UserId, device_timezone: DeviceTimezone = None
+    ) -> dict:
+        """Take those of the week's jobs out of the user's schedule, so that the slots they
+        held are free: the way to move one, or to lay the week out again."""
+        try:
+            monday = date.fromisoformat(week)
+        except ValueError:
+            raise HTTPException(404, "没有这一周") from None
+        if monday.weekday() != 0 or monday.isoformat() != week:
+            raise HTTPException(404, "没有这一周")
+        view = await schedules.unsave(
+            user_id, monday, [job for job in body.jobs], device_timezone
+        )
+        return view.shown()

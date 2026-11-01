@@ -186,6 +186,41 @@ def tag_fields(text: str) -> dict[str, str]:
     return fields
 
 
+NSFW_RATING = "rating:explicit"
+"""What a photo in the intimate tier is rated (`.scratch/nsfw/`), where `QUALITY_TAGS`' own
+rating is left out: the rating is written once, and the line it crosses is the deployment's
+own to set."""
+
+NSFW_QUALITY_TAGS = ("very aesthetic", "masterpiece", "no text")
+"""`QUALITY_TAGS` without `rating:general`, for a photo rated as `NSFW_RATING`."""
+
+NSFW_NEGATIVE_PROMPT = ", ".join((
+    # The Human Focus preset, as `NEGATIVE_PROMPT` has it, and nothing against the line.
+    "lowres", "artistic error", "film grain", "scan artifacts", "worst quality", "bad quality",
+    "jpeg artifacts", "very displeasing", "chromatic aberration", "dithering", "halftone",
+    "screentone", "multiple views", "logo", "too many watermarks", "negative space",
+    "blank page", "@_@", "mismatched pupils", "glowing eyes", "bad anatomy",
+    # What would make the picture look fake: cloth that shows the skin through it when she
+    # wrote nothing of the sort, and the seams of a body drawn wrong under clothes. These
+    # are not against the line — a photo she means to be bare says so in her tags — only
+    # against the model inventing it out of an ordinary nightdress.
+    "see-through", "transparent clothing", "translucent", "x-ray", "clothes with no shadow",
+    "clipping", "fused clothing", "bad hands", "extra fingers", "missing fingers",
+    "deformed", "disfigured", "extra limbs", "poorly drawn face", "mutation", "text",
+    "signature", "watermark",
+    # What is never hers to write, and no one else in the picture.
+    "child", "loli", "shota", "toddler", "aged down", "multiple girls", "2girls", "3girls",
+    "multiple boys", "1boy",
+))
+"""The negative prompt of a photo in the intimate tier: what would spoil the picture, no one
+else in it, and the ways cloth or a body goes wrong.
+
+`nsfw` is not among it, and neither is what the line forbade, which that tier lifts — but
+cloth that lets the skin show through when she wrote no such thing is not the line, it is
+the picture being fake, and it is kept out here. A photo she means to be see-through says so
+in her own tags, which the tier keeps."""
+
+
 def read_tag(text: str) -> PhotoTag:
     """The photo tag `text` says, one field a line (`shot: selfie`), whatever it leaves out or
     gets wrong taken as most likely meant: someone else taking it, from the waist up."""
@@ -363,19 +398,49 @@ def _prompt(
     return ImagePrompt(", ".join((*positive, *QUALITY_TAGS)), negative, size)
 
 
-def image_prompt(character: Character, tag: PhotoTag, style: str = "") -> ImagePrompt:
+def read_tag_adult(text: str) -> PhotoTag:
+    """The photo tag `text` says where the intimate tier lifts the line (`.scratch/nsfw/`):
+    read as `read_tag` reads it, but nothing is stripped for crossing it, and those of her
+    looks she writes are taken too. What is never hers stays out: an art style, an artist,
+    and anyone else in the picture.
+
+    A selfie may be framed as anything here: crouched over the phone, held out at arm's
+    length, mirrored, or propped up and timed — showing her whole body is a matter of how she
+    holds it, not of who takes it. The all-ages reading keeps the shorter framings."""
+    fields = tag_fields(text)
+    shot: Shot = "selfie" if fields.get("shot", "").strip().lower() == "selfie" else "other"
+    written = _cleaned(fields.get("framing", ""))
+    framing: Framing = "upper body"
+    for known in FRAMINGS:
+        if known == written:
+            framing = known
+    seen = {*_FIXED, *_shot_tags(shot), framing}
+    stripped: list[Crossing] = []
+    place, outfit, action = (
+        _field(fields.get(name, ""), seen, stripped, DEFAULTS[name], alone=True, adult=True)
+        for name in DEFAULTS
+    )
+    return PhotoTag(shot, framing, place, outfit, action, tuple(stripped))
+
+
+def image_prompt(
+    character: Character, tag: PhotoTag, style: str = "", adult: bool = False
+) -> ImagePrompt:
     """The prompts a photo of `character` (who has her photo tags) is generated from, as
-    `tag` says it is taken, in the art style `style`."""
+    `tag` says it is taken, in the art style `style`; `adult` for one the intimate tier lifts
+    the line of (`.scratch/nsfw/`), read by `read_tag_adult`."""
     assert character.photo_tag is not None and character.photo_appearance is not None
     action = tag.action
     if tag.shot == "other" and not any(g in t for t in action for g in _GAZES):
         action = (*action, LOOKING_AT_VIEWER)
+    rating = (NSFW_RATING,) if adult else ()
+    quality = NSFW_QUALITY_TAGS if adult else QUALITY_TAGS
     positive = (
-        "1girl", "solo", character.photo_tag, WORK_TAG, *_styled(style),
+        "1girl", "solo", *_styled(style), character.photo_tag, WORK_TAG,
         character.photo_appearance, *_shot_tags(tag.shot), tag.framing, *tag.place,
-        *tag.outfit, *action, *QUALITY_TAGS,
+        *tag.outfit, *action, *rating, *quality,
     )
-    return ImagePrompt(", ".join(positive), NEGATIVE_PROMPT)
+    return ImagePrompt(", ".join(positive), NSFW_NEGATIVE_PROMPT if adult else NEGATIVE_PROMPT)
 
 
 def check_prompt(style: str = "") -> ImagePrompt:
@@ -389,8 +454,13 @@ def check_prompt(style: str = "") -> ImagePrompt:
 
 
 def _styled(style: str) -> tuple[str, ...]:
-    """The art style as it is written into a prompt: as it is, or not at all if empty."""
-    return (style.strip(),) if style.strip() else ()
+    """The art style as it is written into a prompt: as it is, or not at all if empty.
+
+    Weighted, and written early, so that it holds the picture's look whichever way the rest
+    of the prompt leans: left as one more tag among many, it lost against a prompt heavy
+    with what the photo shows, and the same style came out differently at each step
+    (`.scratch/nsfw/`)."""
+    return (f"({style.strip()}:1.3)",) if style.strip() else ()
 
 
 def _shot_tags(shot: Shot) -> tuple[str, ...]:
@@ -410,21 +480,32 @@ def _field(
     default: str | None,
     drops: Callable[[str], bool] = lambda _: False,
     alone: bool = False,
+    adult: bool = False,
 ) -> tuple[str, ...]:
     """The tags of one of her fields, cleaned and put as the model knows them, those already
     written elsewhere left out (and added to `seen`), as are those it `drops`; those crossing
     the line stripped (and which part of it added to `stripped`), holding hands too where no
     one is there to hold them with (`alone`); cut to `FIELD_TAGS`; its `default`, if any, if
-    none are left."""
+    none are left.
+
+    With `adult`, what the intimate tier lifts is kept (`.scratch/nsfw/`): nudity,
+    underwear, exposure, bathing, pose and expression; what is never hers to write — her
+    looks, an art style or an artist, anyone else in the picture — is still stripped."""
     tags: list[str] = []
     for tag in _tags(value):
         if not tag or tag in seen or drops(tag):
             continue
         seen.add(tag)
-        crossing = "people" if alone and tag == HOLDING_HANDS else _TABLE.crossing(tag)
-        if crossing is not None:
-            stripped.append(crossing)
-            continue
+        if adult:
+            crossing = _TABLE.crossing(tag)
+            if crossing is not None and crossing in _NEVER_HERS:
+                stripped.append(crossing)
+                continue
+        else:
+            crossing = "people" if alone and tag == HOLDING_HANDS else _TABLE.crossing(tag)
+            if crossing is not None:
+                stripped.append(crossing)
+                continue
         if tag not in _TABLE.known and len(tags) < FIELD_TAGS:
             log.info("a photo tag the tag table does not know, kept: %r", tag)
         tags.append(tag)
@@ -455,11 +536,25 @@ def _unaware(tag: str) -> bool:
     return tag in (NO_HUMANS, LOOKING_AT_VIEWER)
 
 
+_NEVER_HERS: tuple[Crossing, ...] = ("appearance", "style", "people")
+"""What is never hers to write, whatever the tier: her looks, an art style or an artist,
+anyone else in the picture (`Crossing`)."""
+
+
+_NON_LATIN = re.compile(r"[^\x00-\x7f]")
+
+
 def _cleaned(tag: str) -> str:
-    """`tag` without NovelAI's prompt syntax, in lower case, a space for each underscore."""
+    """`tag` without NovelAI's prompt syntax, in lower case, a space for each underscore.
+
+    Nothing but Latin letters survives: the service refuses a prompt that still holds Han
+    characters (「文本处理后仍包含 Han 字符」, a 400 in the testing), and she writes 「M字開脚」
+    when the thought comes to her in Japanese. What is left of such a tag goes on alone;
+    a tag with nothing left of it is dropped by `_field`."""
     tag = _TEXT.sub("", tag)
     tag = _WEIGHT.sub("", tag)
     tag = _SYNTAX.sub("", tag)
+    tag = _NON_LATIN.sub(" ", tag)
     return " ".join(tag.replace("_", " ").lower().split())
 
 

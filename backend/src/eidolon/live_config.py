@@ -1862,6 +1862,7 @@ class LiveRetrievalJudge:
         affinity: bool = False,
         photo: bool = False,
         days: Days | None = None,
+        nsfw: bool = False,
     ) -> tuple[Need, Judged | None, bool]:
         lease = self._judge.lease()
         try:
@@ -1870,7 +1871,7 @@ class LiveRetrievalJudge:
                 self._activity,
                 judge_origin(lease.settings),
             )
-            return await judge.judge(character, history, text, affinity, photo, days)
+            return await judge.judge(character, history, text, affinity, photo, days, nsfw)
         finally:
             lease.release()
 
@@ -1898,6 +1899,7 @@ class LiveAffinityJudge:
         affinity: bool = True,
         photo: bool = False,
         days: Days | None = None,
+        nsfw: bool = False,
     ) -> tuple[Judged | None, bool]:
         lease = self._judge.lease()
         try:
@@ -1906,7 +1908,22 @@ class LiveAffinityJudge:
                 self._activity,
                 judge_origin(lease.settings),
             )
-            return await judge.judge(character, history, text, affinity, photo, days)
+            return await judge.judge(character, history, text, affinity, photo, days, nsfw)
+        finally:
+            lease.release()
+
+    async def allows(
+        self, character: Character, his_asking: str, her_reply: str
+    ) -> bool:
+        """Whether she let him ask, at the judge model in effect now (`.scratch/nsfw/`)."""
+        lease = self._judge.lease()
+        try:
+            judge = MeteredAffinityJudge(
+                ModelAffinityJudge(lease.client, self._config.judge_thresholds_of(lease.settings)),
+                self._activity,
+                judge_origin(lease.settings),
+            )
+            return await judge.allows(character, his_asking, her_reply)
         finally:
             lease.release()
 

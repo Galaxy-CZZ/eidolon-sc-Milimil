@@ -105,8 +105,19 @@ export function GroupConversation({
   }, [load]);
 
   const count = group ? group.history.reduce((n, entry) => n + entry.lines.length, 0) : 0;
+  // 第一次进来直接落到底，别从上头一路滑下去（那一段看着像在加载）；此后再有新消息，
+  // 才顺着滑过去。换了一个群聊，就当又是一次第一次。
+  const beenThere = useRef(false);
   useEffect(() => {
-    bottom.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    beenThere.current = false;
+  }, [groupId]);
+  useEffect(() => {
+    if (count === 0) return;
+    bottom.current?.scrollIntoView({
+      behavior: beenThere.current ? "smooth" : "auto",
+      block: "end",
+    });
+    beenThere.current = true;
   }, [count]);
 
   useEffect(() => {

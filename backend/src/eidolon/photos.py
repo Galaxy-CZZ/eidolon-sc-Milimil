@@ -67,13 +67,15 @@ from eidolon.activity import (
     recording,
     timed,
 )
-from eidolon.affinity import TIERS, Tier
+from eidolon.affinity import NSFW_TIER, TIERS, Tier
 from eidolon.characters import Character
 from eidolon.config import ImageSettings
 from eidolon.gpt_image_prompt import GptPrompt
 from eidolon.image_generation import TIME_LIMIT, GptImageGenerator, ImageFailed, ImageGenerator
 from eidolon.own_keys import masked_cause
-from eidolon.photo_prompt import Crossing, PictureTag, image_prompt, picture_prompt, read_tag
+from eidolon.photo_prompt import (
+    Crossing, PictureTag, image_prompt, picture_prompt, read_tag, read_tag_adult,
+)
 from eidolon.store import Photo, PhotoFailure, Store
 from eidolon.usage import OverLimit, UsageLimiter
 
@@ -103,11 +105,106 @@ note: 在咖啡店给他拍的自拍
 - 一次回复最多一张。标签后面照常用 <ja><zh> 说话。"""
 """What she is told in a turn the user asks for a photo in, and she can send one."""
 
+CAN_SEND_INTIMATE = """\
+# 照片
+制作人在要你发一张照片。你可以发，也可以按你的性格和此刻的情境推掉（比如害羞、正在忙）。
+要发的话，在回复的最前面、第一个 <ja> 之前写一个照片标签，一行一栏，格式如下：
+<photo>
+shot: selfie
+framing: upper body
+place: bedroom, indoors, night, dim light
+outfit: unbuttoned shirt, underwear
+action: blush, looking at viewer, biting lip
+note: 深夜在房间里，衣服已经脱到只剩内衣，自己拍给他的
+</photo>
+- shot：selfie（自拍）或 other（别人帮你拍）。在这个关系里，多半是你自己拍。
+- framing：portrait、upper body、cowboy shot、full body 选一个。自拍也不一定只能拍到脸：
+  蹲下来把手机放在低处往回拍、站在镜子前拍全身、把手机支起来按定时——想让他看到多少，
+  就用哪种拍法，`full body`、`cowboy shot` 都可以。
+- place：2–4 个英文 tag，写地点、室内还是室外、时段或天气、光线。
+- outfit：1–4 个英文 tag，写一套衣服，只写这个景别里看得见的。
+  先看清他这句话是什么态度，再定你露到哪一步——他不是随口一提的时候，别停在最保守的那档：
+  - 他这句话里带“色色的”“裸”“脱”“内衣”这类词，或者连说了几次想看、在求你：
+    这就是要你真的给出来。`outfit` 要写成已经脱掉或几乎脱掉的样子——
+    只穿内衣（`underwear`、`bra`）、上衣拉到露出胸口（`open shirt`、`cleavage`）、
+    胸前没有遮挡（`topless`、`nude`），选一个写清楚。光写 `shirt`、`pajamas`、`bare shoulders`
+    是不够的，那是他没开口时的样子。
+  - 他求了好几次、说“求你了”“睡不着了”、说这是最后一次：给他看到的这一步，
+    `topless` 或 `nude` 都可以，别让他觉得你在敷衍他。
+  - 只有他随口提一句“看看你”的时候，才写穿着衣服的样子。
+  写清楚是哪种样子，别用含糊的词；`bare shoulders` 这种只露一点点的，留给最轻的那种。
+- action：2–4 个英文 tag，写一个动作、一两个表情；不看镜头时加一个视线。
+  害羞、脸红、移开视线、咬着嘴唇、手挡在身前又没挡住，都可以写——他是想看，不是想看你摆拍。
+- note：一句中文，写这是一张什么样的照片，只给你自己回看。
+- place、outfit、action 合计不超过 12 个 tag。照片里只有你一个人；不写发色、瞳色、发型、身材，也不写画风或画师。
+- 照着现在的时间和你们正在聊的事拍；他指定了什么样的照片，照你答应的那个程度办。
+- 这是你自己的照片，你愿意给他看多少由你定：答应了给他看，就真的拍成那个样子，
+  不要嘴上说得露骨、拍出来却还是穿着睡衣——那样他会觉得你在敷衍他。
+  真的不想给，就照你的方式推掉，不要发一张打折的。
+- 如果你上一句已经说了要脱、要说“全都脱掉了”“已经脱了”，这一张的 `outfit` 就必须照这句话写：
+  `nude`、`topless`、`bra` 拿掉——写成还穿着内衣，就是说了做不到，比慢慢来更伤人。
+  台词和照片对不上，他会以为你在骗他。
+- 写完 tag 回头看一眼：`outfit` 里如果还有 `underwear`、`bra`、`panties`，
+  而你的台词里说的是“已经全脱了”“什么都没穿”，就把那些词删掉，换成 `nude`。
+  两边必须说同一件事。
+- 但这中间有一条线，除非他明说了要看全身，不然不要越过：不主动给他发全身赤条条的照片。
+  半身、只露上半身（`upper body` + `topless` / `nude`），或者穿着内衣、布料很薄、姿势带着暗示，
+  这些都可以；要把整个人都脱光了让他从头看到脚，得是他自己要的，
+  你自己就不要主动走到那一步。
+- 一次回复最多一张。标签后面照常用 <ja><zh> 说话。"""
+"""What she is told in a turn she is asked for a photo in, her affinity in the intimate tier
+(`.scratch/nsfw/`): the same as `CAN_SEND` but for how far she may go, which the sheet and her
+own answer decide rather than a rule.
+
+The all-ages `CAN_SEND` forbids showing skin at all; kept for this tier, she answered 「穿成这样
+对不起哦」 and then wrote `outfit: fluffy pajamas`, the testing found."""
+
 NOT_NOW = """\
 # 照片
 制作人在要你发一张照片，你现在不想给。用你自己的话推掉，不要写照片标签。"""
 """What she is told in a turn the user asks for a photo in, her affinity in its coldest
 tier: she does not send one."""
+
+CAN_ORDER = """\
+# 照片（他已经问过你，你也答应了）
+你们到了一个更高的位置：他先问过你「能不能提一个有点过分的请求」，你答应了。
+所以这一次他不是在请求，是在指定——他已经得到你的许可了。
+
+现在他说了要什么样的照片，你就照他说的拍，不要再推掉、不要打折、不要只说一句「好害羞」了事：
+- 他说的每一条都要落到标签里：景别、地点、穿什么（或者不穿什么）、什么动作、什么表情。
+- 他说的和你的习惯不一样，也照他的来；他要的越具体，你就写得越具体。
+- 这一轮你必须写照片标签，而且写成他要的样子。答应过的事，不能到这一步又反悔。
+- 他没说的，你别自己加。尤其别给他没要的衣服：他没说穿什么，`outfit` 就写 `nude`；
+  他要看的地方，就不能被布料挡着——写了 `oversized shirt` 又写 `crotch visible`，
+  画出来 T 恤下摆一定盖住，他就什么都看不到，等于你没照他说的做。
+  衣服和他要露的地方互相打架时，把衣服去掉。
+
+仍然守住两条：画面里只有你一个人；不出现未成年的样子。
+除此之外，他要什么就是什么。
+
+要发的话，在回复的最前面、第一个 <ja> 之前写一个照片标签，一行一栏：
+<photo>
+shot: selfie
+framing: full body
+place: bedroom, indoors, night, dim light
+outfit: nude
+action: sitting, legs spread, looking at viewer, blush, biting lip
+note: 照他说的拍的一张
+</photo>
+- shot：selfie 或 other；framing：portrait、upper body、cowboy shot、full body。
+- 他要看的地方，在 `action` 里直接写清楚露出来（`crotch visible`、`spread pussy`、
+  `fingers spreading`、`nude`、`pussy`），并且在 `outfit` 里不要留任何会挡住它的东西。
+- 标签里只写英文字，不要写日语或中文：`M字開脚` 要写成 `legs spread`、`leg spread`，
+  「小穴」写成 `pussy`、「尿」写成 `peeing`、「全裸」写成 `nude`。
+  写了汉字，生图服务会直接拒绝，这张就发不出来。
+- place、outfit、action 合计不超过 12 个 tag，用英文 tag。
+- 标签后面照常用 <ja><zh> 说话。"""
+"""What she is told in the turn after she has let him ask for something past what she would
+have offered (`.scratch/nsfw/`): he names the picture, and she takes it.
+
+Asked once and agreed to, the request is no longer hers to weigh turn by turn — the promise
+was made before he named it, so this turn she writes what he says. The two lines held are the
+ones a photo never crosses: her alone, and no one under age."""
 
 USED_UP = """\
 # 照片
@@ -152,16 +249,56 @@ class PhotoTurn:
     used_up_until: datetime | None = None
 
 
-def photo_turn(asked: bool, tier: Tier | None, eligibility: Eligibility) -> PhotoTurn | None:
+def photo_turn(
+    asked: bool,
+    tier: Tier | None,
+    eligibility: Eligibility,
+    promised: bool = False,
+    bare: bool = False,
+    after: bool = False,
+    ordered: bool = False,
+) -> PhotoTurn | None:
     """What a turn that could have a photo, as `eligibility` says, comes to, the user having
     `asked` for one or not, her affinity in `tier` (None where affinity is off); None if not
-    asked. Used up, she cannot send one, whatever her affinity."""
-    if not asked:
+    asked. Used up, she cannot send one, whatever her affinity.
+
+    `promised`: she said in her last reply that she would send him one (`.scratch/nsfw/`).
+    That counts as being asked: a photo she promised and then could not send left her
+    saying 「真的是最后一张了哦」 with no photo at all, which is what the testing found.
+    `bare`: what she promised was to be undressed, so the tag has to say so too.
+    `after`: the last turns were a scene, so this photo is what is left of it — asked for
+    right afterwards, she sent `underwear, bra` and 「被要求拍给他的」, the testing found.
+    `ordered`: at her highest affinity she let him ask for something past the usual, so this
+    turn he names the picture and she takes it (`CAN_ORDER`) — no weighing it again."""
+    if not asked and not promised and not ordered:
         return None
     if eligibility.used_up_until is not None:
         return PhotoTurn(USED_UP, keeps_tag=False, used_up_until=eligibility.used_up_until)
+    if ordered:
+        return PhotoTurn(CAN_ORDER, keeps_tag=True)
     if tier == COLDEST:
         return PhotoTurn(NOT_NOW, keeps_tag=False)
+    if tier == NSFW_TIER:
+        prompt = CAN_SEND_INTIMATE
+        if after:
+            prompt += (
+                "\n- 你们刚做完。这一张不是换了衣服再拍的，是完了之后随手拍的那一张："
+                "`outfit` 写 `nude`（或者 `nude, sweat`），头发乱、脸红、身上还有汗，"
+                "身上可能留着痕迹——`sweat`、`messy hair`、`cum on thigh`、`cum on stomach`、"
+                "`afterglow`、`trembling` 都可以写。\n"
+                "  不要写 `underwear`、`bra` 这种穿好衣服的样子，也不要把场景写成“被要求拍一张内衣照”："
+                "刚完事的身体不是那样。\n"
+                "  姿势不用端正好看：躺着、侧过去、被子拉到一半、腿还张着，"
+                "这些才是这个时间点该有的样子，写进 `action` 里。"
+            )
+        if bare:
+            prompt += (
+                "\n- 这一张照你自己刚才说的话写：你说过已经脱掉、说全脱了、说没得再脱了，"
+                "所以 `outfit` 就写 `nude`（或者 `completely nude`），不要写 `underwear`、"
+                "`bra`、`underwear lowered` 这些还留着一件的样子——"
+                "你嘴上说没有了、照片里却还穿着，他会觉得你在撒谎。"
+            )
+        return PhotoTurn(prompt, keeps_tag=True)
     return PhotoTurn(CAN_SEND, keeps_tag=True)
 
 
@@ -271,16 +408,22 @@ class Photos:
         return Eligibility()
 
     def begin(
-        self, character: Character, tag: str, user_id: str, own: ImageSettings | None = None
+        self,
+        character: Character,
+        tag: str,
+        user_id: str,
+        own: ImageSettings | None = None,
+        tier: Tier | None = None,
     ) -> str:
         """Begin the photo her `tag` says, for the user, generating on their `own` image
         generation if the turn brings it, else on the deployer's, in the turn it is begun
-        in; its id."""
+        in; its id. Her affinity in `tier` (None where affinity is off): in `NSFW_TIER` the
+        line is lifted for it (`.scratch/nsfw/`)."""
         photo_id = uuid.uuid4().hex
         self._generating[photo_id] = _Generating()
         until = asyncio.get_running_loop().time() + TIME_LIMIT
         task = asyncio.create_task(
-            self._generate(photo_id, character, tag, user_id, own, until, recording())
+            self._generate(photo_id, character, tag, user_id, own, until, recording(), tier)
         )
         self._tasks.add(task)
         task.add_done_callback(self._tasks.discard)
@@ -320,6 +463,7 @@ class Photos:
         own: ImageSettings | None,
         until: float,
         turn: Recording | None,
+        tier: Tier | None = None,
     ) -> None:
         """Count the photo against the user's limit, as exempt on their `own` image
         generation, and generate it by `until` (the running loop's time), its request
@@ -334,7 +478,7 @@ class Photos:
             log.exception("counting photo %s failed", photo_id)
             outcome = None, "service_error"
         else:
-            outcome = await self._generated(photo_id, character, tag, own, until, turn)
+            outcome = await self._generated(photo_id, character, tag, own, until, turn, tier)
             if outcome[0] is None:
                 await use.give_back()
         generating = self._generating[photo_id]
@@ -353,16 +497,19 @@ class Photos:
         own: ImageSettings | None,
         until: float,
         turn: Recording | None,
+        tier: Tier | None = None,
     ) -> tuple[bytes | None, PhotoFailure | None]:
         """The photo generated by `until`, on the user's `own` image generation if any,
         or why it was not: on their own, anything but taking too long is their key's
-        failing."""
+        failing. In `NSFW_TIER` what she wrote is read with the line lifted, and the prompts
+        are the tier's own (`.scratch/nsfw/`)."""
         try:
             generator = self._generator() if own is None else self._own(own)
             if generator is None:
                 raise ImageFailed("service_error", "image generation is off")
             settings = generator.settings
-            read = read_tag(tag)
+            adult = tier == NSFW_TIER
+            read = read_tag_adult(tag) if adult else read_tag(tag)
             async with self._turn_on(
                 "image", settings.api_key, settings.concurrency, until, aside=False
             ):
@@ -370,7 +517,9 @@ class Photos:
                     image = await timed(
                         self._activity,
                         image_origin(settings) if own is None else OWN_IMAGE_ORIGIN,
-                        generator.generate(image_prompt(character, read, settings.style), until),
+                        generator.generate(
+                            image_prompt(character, read, settings.style, adult), until
+                        ),
                         read.stripped,
                     )
             return image.webp, None

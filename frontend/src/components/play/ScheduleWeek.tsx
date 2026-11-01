@@ -15,7 +15,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
-import { Popover, PopoverContent, PopoverDescription, PopoverHeader, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
 import { copy } from "@/i18n";
 import type { Character } from "@/lib/api";
 import { addDays, type CalendarData, type CalendarEvent, eventsOn, partsOf } from "@/lib/calendar";
@@ -101,6 +100,7 @@ export function ScheduleWeek({
   who,
   isWide,
   onDrafts,
+  onTakeBack,
 }: {
   board: Board;
   /** 显示的是下周。 */
@@ -114,6 +114,8 @@ export function ScheduleWeek({
   who: string | null;
   isWide: boolean;
   onDrafts: (drafts: Placement[]) => void;
+  /** 点保存过的那一格时叫它：后端先把它从日程里拿掉，再作为草稿放回待排。 */
+  onTakeBack?: (jobId: string) => void;
 }) {
   // 电脑上选中的待排；手机上打开着的抽屉（收起的动画里内容不消失，所以收起时只改 `open`）。
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -148,8 +150,15 @@ export function ScheduleWeek({
         }
       }}
       onBlock={(occupant) => {
+        // 保存过的块点开看说明（它哪天哪几段、工作写的什么），要改它就按说明里的
+        // 「从日程里撤下来」：撤下来才回到待排，再点新的格子放下去。
+        // 正在进行的、已经过去的，后端不撤——那是已经发生的事，不是还能改的计划。
+        if (occupant.isSaved) {
+          setSelectedId(null);
+          setBlockSheet({ value: occupant, open: true });
+          return;
+        }
         if (isWide) {
-          // 草稿拿回待排、选中它，好换个地方放；保存过的由块自己弹说明。
           takeBack(occupant.job);
           setSelectedId(occupant.job.id);
         } else setBlockSheet({ value: occupant, open: true });
@@ -180,6 +189,20 @@ export function ScheduleWeek({
         )}
       </section>
       {!isWide && pendingList}
+      {isWide && (
+        // 电脑上保存过的块也点得开说明（抽屉）：说明里才有「从日程里撤下来」。
+        <BlockDrawer
+          sheet={blockSheet}
+          characterOf={characterOf}
+          onTakeBack={(job) => {
+            const was = blockSheet?.value;
+            takeBack(job);
+            if (was?.isSaved) onTakeBack?.(job.id);
+            setBlockSheet((s) => s && { ...s, open: false });
+          }}
+          onClose={() => setBlockSheet((s) => s && { ...s, open: false })}
+        />
+      )}
       {!isWide && (
         <>
           <CellDrawer
@@ -207,7 +230,9 @@ export function ScheduleWeek({
             sheet={blockSheet}
             characterOf={characterOf}
             onTakeBack={(job) => {
+              const was = blockSheet?.value;
               takeBack(job);
+              if (was?.isSaved) onTakeBack?.(job.id);
               setBlockSheet((s) => s && { ...s, open: false });
             }}
             onClose={() => setBlockSheet((s) => s && { ...s, open: false })}
@@ -229,9 +254,10 @@ function WeekHeading({
   onWeek,
 }: {
   week: string;
+  /** 这一组里的第一周之后再往前（`weeksAt` 的 `open` 有三周）。 */
   isNext: boolean;
   hasNext: boolean;
-  onWeek: (isNext: boolean) => void;
+  onWeek: (forward: boolean) => void;
 }) {
   return (
     <div className="flex items-center gap-1">
@@ -239,7 +265,8 @@ function WeekHeading({
         <PreviousMonthIcon />
       </Button>
       <h2 className="flex min-w-0 items-baseline gap-2 text-header">
-        {isNext ? t.nextWeek : t.thisWeek}
+        {/* 现在是几周都能排，「本周/下周」写不下了：只写日期范围，本周另标一下。 */}
+        {!isNext && <span className="text-subtitle font-normal text-muted-foreground">{t.thisWeek}</span>}
         <span className="truncate text-subtitle font-normal text-muted-foreground tabular-nums">
           {t.range(dateText(week), dateText(addDays(week, 6)))}
         </span>
@@ -248,7 +275,7 @@ function WeekHeading({
         variant="ghost"
         size="icon-sm"
         aria-label={t.next}
-        disabled={isNext || !hasNext}
+        disabled={!hasNext}
         onClick={() => onWeek(true)}
       >
         <NextMonthIcon />
@@ -397,7 +424,6 @@ function GridCell({
         state={item.state}
         character={characterOf(item.occupant.job.character_id)}
         isDim={isDim}
-        isWide={isWide}
         onClick={() => onBlock(item.occupant)}
       />
     );
@@ -446,7 +472,6 @@ function Block({
   state,
   character,
   isDim,
-  isWide,
   onClick,
 }: {
   occupant: Occupant;
@@ -454,7 +479,6 @@ function Block({
   character: ScheduledCharacter;
   /** 电脑上选中了待排，别的格子淡下去。 */
   isDim: boolean;
-  isWide: boolean;
   onClick: () => void;
 }) {
   const { job, isSaved } = occupant;
@@ -484,38 +508,20 @@ function Block({
   );
   const label = t.block(character.name, job.name, t.states[state]);
   const style = herStyle(character);
-  if (isSaved && isWide) {
-    return (
-      <Popover>
-        <PopoverTrigger render={<button type="button" aria-label={label} style={style} className={className} />}>
-          {face}
-        </PopoverTrigger>
-        <PopoverContent align="start">
-          <JobAbout occupant={occupant} character={character} />
-        </PopoverContent>
-      </Popover>
-    );
-  }
+  // 已保存的块以前在电脑上只弹一个说明（Popover），点了什么都改不了：要改它，
+  // 就是点开拿回待排、重新放（`.scratch/nsfw/`）。说明还在，跟着抽屉一起给。
   return (
-    <button type="button" aria-label={label} style={style} className={className} onClick={onClick}>
+    <button
+      type="button"
+      aria-label={label}
+      style={style}
+      className={className}
+      onClick={onClick}
+      data-saved={isSaved ? "yes" : "no"}
+      data-state={state}
+    >
       {face}
     </button>
-  );
-}
-
-/** 电脑上保存过的块弹出的说明：她的头像、谁的哪项、哪天哪几段，和工作的说明。 */
-function JobAbout({ occupant, character }: { occupant: Occupant; character: ScheduledCharacter }) {
-  return (
-    <>
-      <PopoverHeader className="flex-row items-center gap-2">
-        <MarkedAvatar name={character.name} src={character.avatar_url} size="sm" />
-        <span className="flex min-w-0 flex-col">
-          <PopoverTitle>{t.whose(character.name, occupant.job.name)}</PopoverTitle>
-          <PopoverDescription>{whenText(occupant.placement, occupant.job)}</PopoverDescription>
-        </span>
-      </PopoverHeader>
-      <p>{occupant.job.note}</p>
-    </>
   );
 }
 
@@ -741,11 +747,9 @@ function BlockDrawer({
             />
             <div className="flex flex-col gap-4 px-4 pb-6">
               <p className="text-body">{occupant.job.note}</p>
-              {!occupant.isSaved && (
-                <Button variant="outline" onClick={() => onTakeBack(occupant.job)}>
-                  {t.takeBack}
-                </Button>
-              )}
+              <Button variant="outline" onClick={() => onTakeBack(occupant.job)}>
+                {occupant.isSaved ? t.takeBackSaved : t.takeBack}
+              </Button>
             </div>
           </>
         )}

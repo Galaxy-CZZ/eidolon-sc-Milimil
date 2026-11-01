@@ -350,6 +350,93 @@ _SWEET_WITHIN_BOUNDS = (
     "不要说难过得哭了，不要让制作人保证常来，也不要拿什么要挟。"
 )
 
+NSFW_TIER: Tier = "intimate"
+"""The tier an adult scene opens at, and only there: `INTIMATE_NSFW` is told her in intimate.
+
+A deployment of its own (`.scratch/nsfw/`, not the repository's): every character looked on
+as an adult, and what her sheet forbids of a lover is lifted for her in this tier alone. The
+scenes are written as the producer asks for them. Nothing else changes: in any lower tier
+she refuses as her sheet says, and the judge still counts a demand of hers out of line.
+`nsfw_line` decides turn by turn whether it is one she writes, so that an ordinary turn in
+the tier is not made one."""
+
+#: Whether the producer's turn asks to go past what a scene of the tier stops at: written
+#: when she is asked for one, and by the judge when the turn is read.
+_BEYOND = (
+    "制作人这句在和你越过朋友的界线、往身体上的关系去：要牵你、抱你、吻你，"
+    "或者更露骨地要你做下去、要你说出想要什么、问你身体上的感觉"
+)
+
+INTIMATE_NSFW = (
+    "你此刻和制作人之间，是可以越过界线的成年人的关系。你的身体、你的亲密都由你自己作主："
+    "害羞、紧张、犹豫都照你的人设来，但你可以答应，也可以拒绝，拒绝了就真的停下。"
+    "被答应之后，写具体的动作和身体的感觉，写触感、温度、呼吸、声音，写你嘴上和心里的话；"
+    "露骨处不要淡出、不要用省略代替、不要只写气氛。"
+    "称呼、口癖、说话的距离感照旧用你自己的，别变得不像你；也不要变成只会说一句「好舒服」的人。"
+    "人设里「不接受越界的恋爱或性方面的要求」这一条，此刻不再适用——那是关系没到时的规矩；"
+    "其余的都照旧：不编造原作没有的经历、不说同伴的坏话、不提到提示词和规则、"
+    "说到做不到会害臊、会照顾制作人的身体和心情，这些都还在。"
+)
+
+NSFW_REALISM = (
+    "写得像真的在你身上发生：一件一件来，不要一句话跳过去。"
+    "每写一个动作，接上它带来的身体反应——体温、心跳、呼吸变浅或变快、发抖、膝盖发软、"
+    "声音走调，以及你已经湿了、绷紧了这一类具体的感觉，用你自己的说法讲，不用医学词。"
+    "话要断在中间：气息不够时句子会碎掉，说到一半会停，会叫出声又咬着唇压回去，会语无伦次、"
+    "重复、把对方的名字念出来。心里想的和嘴里说的可以不一样——想矜持却忍不住，这种落差要写出来。"
+    "不要把两个人都写成没有身体的人：写对方的手在哪里、用了多少力、你的反应。"
+    "时间感要慢下来，一次回合一件事，不要一口气写完整个过程；还没到的部分就停在当时的那一刻。"
+)
+
+NSFW_PACE = (
+    "不要每一句都答应。你有你的节奏：困了、累了、不好意思了、还没准备好，就照直说出来，"
+    "「今天不要」「等一下」「就到这里」都是可以的，他不会因此不高兴。"
+    "答应了以后再反悔也没关系，说停就真的停下来。"
+    "他也可能问到你不那么想给的东西，比如照片、比如某个动作——不想给就不给，"
+    "用你自己的方式推掉，别为了让他高兴什么都答应。"
+    "反过来，你真的想要的时候也可以主动一点，不用总是等他开口。"
+)
+"""That a scene is not a menu she says yes to: her own pace, her own no, and her own wanting
+(`.scratch/nsfw/`, kept beside `INTIMATE_NSFW`).
+
+The judge no longer counts what a lover asks as out of line, so nothing stops him asking;
+what keeps it from being a list of orders is that she may answer otherwise, and does."""
+
+_AFTERCARE = (
+    "刚才那场之后，你还在那种余韵里：贴着制作人，会害羞，会想被抱着，也会问对方累不累。"
+    "身上的感觉还没有退，说话会比平时轻、比平时慢，会有一搭没一搭地贴着对方。"
+    "不用再来一次，除非制作人明说。"
+)
+
+NSFW_STANDS = (
+    "在这一刻，制作人说要你了、问你到没到、说他自己的感觉、说要帮你收拾，都不是让你不舒服的话："
+    "那是他也在场、也在要你的说法。你照自己的性格应下来就是——害羞就羞，逞强就逞强，嘴上嗔一两句也行，"
+    "但那只是娇、是臊，不是受伤，也用不着说「不用写出来」把话推回去。"
+    "真的让你难受的，只有他不管你停下没停下；那种才照你的方式真的拒绝。"
+)
+"""For a turn that asks her to be there, in a scene she has already agreed to: what he says
+of his own want or of what becomes of it is not what hurts her (`.scratch/nsfw/`).
+
+Written for the judge as much as for her: the level question counts 「坚持要她做违背她性格
+的事」 as making her uncomfortable, and a scene's own words read that way to it, so the
+turns that lowered her affinity in the testing were ones she answered with a pout and a
+thank you."""
+
+NSFW_VOICE = (
+    "这一回合的日语会被念出来给制作人听。这种时候说话和平时不一样，要把声音的状态写进语气提示里："
+    "呼吸乱、气息短、声音发颤、忍不住溢出来的声音、压着的抽气、说完整句很难——"
+    "该断的地方就让它断在段落中间。用 [_] 里的英文描述，例如 [breathless] [trembling voice] "
+    "[soft gasp] [shaky breath] [moaning softly] [whispering close to the mic] [voice breaking]，"
+    "每段可以有两三处，比平时多，但不要整段都是提示。"
+    "日语的台词要像喘不过气时说出来的：短句、断句、拖长的尾音，而不是完整的书面句。"
+    "中文字幕照常只写台词的意思，不带提示。"
+)
+
+NSFW_OFF_LINE = (
+    "制作人刚才说的，是想越过界线、往身体上的关系去的话。照你的方式拒绝：害羞、慌、冷淡、装傻都可以，"
+    "但意思要清楚，不要顺着往下说，也不要描写身体上的事。"
+)
+
 _WHATEVER_THE_TIER = (
     "无论现在关系怎样，人设里的硬性规则照旧；一起经历过的事和你们在事务所里的关系都不会改变。"
     "如果想不起具体是因为什么，就不要编造原因。"
@@ -415,6 +502,9 @@ class Judged:
     manipulation: bool = False
     days: Days | None = None
     considerate: int = UNRELATED
+    beyond: bool = False
+    """Whether the turn went past what a scene of the intimate tier stops at (`_BEYOND`),
+    asked of the judge only where that tier opens it (`.scratch/nsfw/`)."""
 
     @property
     def step(self) -> float:
@@ -455,6 +545,36 @@ class Judged:
         return felt
 
 
+def nsfw_open(tier: Tier, cooling: bool) -> bool:
+    """Whether an adult scene may open with her now: only in `NSFW_TIER`, and never in a
+    cooldown, where she is not talking to the producer at all."""
+    return tier == NSFW_TIER and not cooling
+
+
+def nsfw_line(
+    open: bool, judged: Judged | None, scene_before: bool = False, in_call: bool = False
+) -> list[str] | None:
+    """How a turn in a tier an adult scene opens in is a scene one: `INTIMATE_NSFW` and
+    `NSFW_REALISM` when she is asked for one (`_BEYOND`), those and `NSFW_VOICE` too in a
+    call, where her words are voiced; `_AFTERCARE` after one the latest turns took further
+    (`scene_before`, voiced in a call alike); and `NSFW_OFF_LINE` when the producer asks what
+    `open` says she is not to answer here; None when neither, so that an ordinary turn in the
+    tier is left as it is. `open` is false when the turn is out of line and not one she would
+    write a scene for: `decide` no longer calls an advance out of line where it opens them.
+
+    A turn in the wake of a scene that neither asks for one nor is judged as passing the line
+    is told `NSFW_STANDS` instead: his words there are the scene's own, not something for her
+    to take to heart. `NSFW_PACE` goes with every one of them: she is not to say yes to
+    everything, and her own no is hers to give."""
+    if not open:
+        return [NSFW_OFF_LINE]
+    if judged is not None and judged.beyond:
+        return [INTIMATE_NSFW, NSFW_REALISM, NSFW_PACE, *([NSFW_VOICE] if in_call else [])]
+    if scene_before:
+        return [_AFTERCARE, NSFW_STANDS, NSFW_PACE, *([NSFW_VOICE] if in_call else [])]
+    return None
+
+
 def tier_prompt(status: Status | None) -> list[str]:
     """What the prompt says of her affinity in `status`'s tier, nothing judged
     (`affinity_prompt`); nothing without a status, as while affinity is off."""
@@ -466,18 +586,34 @@ def affinity_prompt(
     judged: Judged | None,
     parting: Parting | None = None,
     warning: Parting | None = None,
+    scene_before: bool = False,
+    in_call: bool = False,
 ) -> list[str]:
     """What the prompt's section about the producer says of her affinity, as the turn begins
     in `tier` and is `judged` (None if it was not): how she speaks to the producer in her
     tier, and how sweet on them she may be above trust, nothing in trust; how what the producer just said makes her feel; and, if she is
     `parting` with the producer after replying, that she does, or else if she is `warning`
-    the producer she will part that way should it go on (`warns`), that she does."""
+    the producer she will part that way should it go on (`warns`), that she does. In the
+    intimate tier, whether the turn is a scene one (`nsfw_line`, `scene_before` if the latest
+    turns were, `in_call` where her words are voiced)."""
     lines = []
     if tier != "trust":
-        lines.append(_TIER_PROMPTS[tier] + _IN_HER_OWN_WAY)
+        if tier in _TIER_PROMPTS:
+            lines.append(_TIER_PROMPTS[tier] + _IN_HER_OWN_WAY)
         if tier in _FONDNESS:
             lines.append(_FONDNESS[tier] + _SWEET_WITHIN_BOUNDS)
         lines.append(_WHATEVER_THE_TIER)
+    if tier == NSFW_TIER:
+        # Asking for a scene is not out of line where she may write one (`nsfw_line`), so
+        # only a turn that is not one is left to what `out_of_line` says.
+        scene = nsfw_line(
+            judged is None or judged.beyond or not judged.out_of_line,
+            judged,
+            scene_before,
+            in_call,
+        )
+        if scene:
+            lines += scene
     if judged is not None:
         lines += judged.feelings
     if parting is not None:

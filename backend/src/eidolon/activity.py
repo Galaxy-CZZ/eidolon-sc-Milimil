@@ -1796,10 +1796,11 @@ class MeteredJudge:
         affinity: bool = False,
         photo: bool = False,
         days: Days | None = None,
+        nsfw: bool = False,
     ) -> "tuple[Need, Judged | None, bool]":
         return await timed(
             self._log, self._origin,
-            self._judge.judge(character, history, text, affinity, photo, days),
+            self._judge.judge(character, history, text, affinity, photo, days, nsfw),
         )
 
 
@@ -1820,10 +1821,19 @@ class MeteredAffinityJudge:
         affinity: bool = True,
         photo: bool = False,
         days: Days | None = None,
+        nsfw: bool = False,
     ) -> "tuple[Judged | None, bool]":
         return await timed(
             self._log, self._origin,
-            self._judge.judge(character, history, text, affinity, photo, days),
+            self._judge.judge(character, history, text, affinity, photo, days, nsfw),
+        )
+
+    async def allows(
+        self, character: Character, his_asking: str, her_reply: str
+    ) -> bool:
+        return await timed(
+            self._log, self._origin,
+            self._judge.allows(character, his_asking, her_reply),
         )
 
 

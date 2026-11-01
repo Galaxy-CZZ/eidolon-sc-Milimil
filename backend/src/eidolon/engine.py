@@ -100,6 +100,7 @@ the judge model read those the user answers, after the last turn, as her latest 
 
 import asyncio
 import logging
+import re
 import sqlite3
 from collections.abc import AsyncGenerator, AsyncIterator, Awaitable, Callable, Mapping, Sequence
 from contextlib import nullcontext
@@ -110,15 +111,18 @@ from typing import Literal, ParamSpec, TypeVar
 
 from eidolon.affinity import (
     FED_UP_TURNS,
+    HIGHEST,
     Affinities,
     Days,
     EndsFor,
     Judged,
     Parting,
     Status,
+    Tier,
     affinity_prompt,
     ends,
     hurt,
+    nsfw_open,
     tier_prompt,
     warns,
 )
@@ -376,6 +380,127 @@ def _days(her_day: HerDay) -> Days | None:
     return None
 
 
+_IN_JAPANESE = """\
+# 这一轮只写日语
+上面的对话里有中文，那只是字幕。你要说的是日语：`<ja>` 里必须是日语的假名和汉字，
+不能把中文当成日语填进去，`<zh>` 才是给你看的字幕。
+写完回头看一遍 `<ja>`：里面一个假名都没有，就是写错了，重写成日语再交出来。"""
+"""The last thing she is told before she writes, after the history.
+
+The history pulls hardest: a conversation where every turn so far came back in Chinese had
+a turn come back in Chinese under `<ja>` — tags right, words wrong (`reply_format.is_japanese`
+is what reads it, but the stream has gone out by then, so the prompt is where it is
+mended)."""
+
+
+_PROMISED_A_PHOTO = re.compile(
+    "这就发|发出了|发给你|发过去了|拒绝不了|拿你没办法|就这一次|就一张|稍等|等一下"
+    "|只是最后一张|最后一张了|只看一小会"
+    "|拍了|拍了哦|拍好了|拍完|用定时|定时拍|要不要看"
+    "|送りました|送るね|送るよ|見せてあげる|見せたげる|仕方ない|しょうがない"
+    "|これで最後|最後だよ|撮った|撮るね|撮るよ|タイマー",
+)
+"""What her last reply says when she has agreed to send him a photo (`.scratch/nsfw/`).
+
+Read from her words rather than asked of the judge model, as a second question on every turn
+with a photo to give would cost a call each time; what it misses is caught by `photo`'s own
+question on the user's side. A photo she promised and then could not send left her saying
+「真的是最后一张了哦」 with nothing attached, which is what the testing found.
+
+「甘奈拍了哦」 and 「用定时」 were missed at first: she described taking it and still wrote no
+tag, so the promise has to be read from how she says she took it, not only from how she says
+she will send it."""
+
+_REFUSED_A_PHOTO = re.compile(
+    "下次再说|明天再说|照片明天|不给|不行|不要|やめ|だめ|無理|また今度|お断り"
+    "|見せない|送らない",
+)
+"""What her last reply says when she has put it off instead, so that a promise in the turn
+before it is not read as one now. Kept narrow on purpose: 「就这一次」 holds 次 and is a
+promise, while 「下次再说」 holds 次 and is not."""
+
+_UNDRESSED_IN_WORDS = re.compile(
+    "全都脱|全脱|脱掉|脱了|脱下来|脱いじゃ|脱ぎ|脱$|就脱|脱给你|脱给|裸にな|真っ裸|素っ裸|裸で"
+    "|何も着てない|什么都没穿|没穿"
+    "|能遮的.*没有|能穿的.*没有|没有能脱|没得脱|已经不剩|什么也没有了|全都光了|全部脱"
+    "|着けるものが|もう何も",
+)
+
+
+def _promised_a_photo(messages: list[Message]) -> bool:
+    """Whether her latest reply agreed to send him a photo: said it would, and did not put it
+    off in the same breath."""
+    hers = [m for m in messages if m.role == "character"]
+    if not hers:
+        return False
+    said = hers[-1].text or ""
+    said += hers[-1].ja or ""
+    said += hers[-1].zh or ""
+    if not said.strip():
+        return False
+    if _REFUSED_A_PHOTO.search(said):
+        return False
+    return bool(_PROMISED_A_PHOTO.search(said))
+
+
+def _bare_in_words(messages: list[Message]) -> bool:
+    """Whether her latest reply said she was, or would be, undressed for the photo."""
+    hers = [m for m in messages if m.role == "character"]
+    if not hers:
+        return False
+    said = "".join(part for part in (hers[-1].text, hers[-1].ja, hers[-1].zh) if part)
+    return bool(said and _UNDRESSED_IN_WORDS.search(said))
+
+
+_ASKED_TO_ASK = re.compile(
+    "有点过分|有些过分|过分的要求|过分的请求|提个过分|過分な|過ぎるお願い|過ぎたお願い"
+    "|わがままを|一个请求|提个请求|お願いがある|頼みがある|要求を|要求が",
+)
+"""What he says when he asks to be allowed to ask for something past the usual.
+
+A pattern, but only to find the turn he asked in: whether she let him is the judge's to say
+(`photo_judge.ALLOW_QUESTION`)."""
+
+
+def _when_he_asked(messages: list[Message]) -> tuple[str, str | None]:
+    """His asking, and her answer to it, from the turns just before this one.
+
+    He asks, she answers, and only then does he name the picture — so the asking is a turn or
+    two back, and hers is the reply it got. None for her answer where she has not answered,
+    or where what she answered came after he had already named what he wanted."""
+    recent = messages[-6:]
+    for index in range(len(recent) - 1, -1, -1):
+        message = recent[index]
+        if message.role != "user" or not _ASKED_TO_ASK.search(message.text or ""):
+            continue
+        for later in recent[index + 1:]:
+            if later.role == "user":
+                break  # he named it before she answered: not a yes to the asking
+            said = "".join(part for part in (later.text, later.ja, later.zh) if part)
+            if said.strip():
+                return message.text or "", said
+        return message.text or "", None
+    return "", None
+
+
+async def _allowed_to_order(
+    judge: AffinityJudge,
+    character: Character,
+    her_reply: str,
+    his_asking: str,
+) -> bool:
+    """Whether she let him ask: her answer to his asking, read by the judge model.
+
+    A model in place of a pattern because what she lets him with is a meaning: 「先听听看吧」
+    let him, and 「不调好不行」 inside a yes is not a refusal. Read once, only on turns that
+    could carry the picture he named, and only at her highest affinity."""
+    try:
+        return await judge.allows(character, his_asking, her_reply)
+    except Exception:
+        log.warning("reading whether she let him ask failed", exc_info=True)
+        return False
+
+
 async def _judged(
     judge: AffinityJudge,
     character: Character,
@@ -384,12 +509,14 @@ async def _judged(
     affinity: bool,
     photo: bool,
     days: Days | None,
+    nsfw: bool = False,
 ) -> tuple[Judged | None, bool]:
     """Asked about `affinity`, what saying `text` does to her affinity (None if not, or if it
-    cannot be told), in her `days` if she is in them; asked about `photo`, whether it asks her
-    for one (no if not, or if it cannot be told)."""
+    cannot be told), in her `days` if she is in them and `nsfw` where the intimate tier opens
+    a scene; asked about `photo`, whether it asks her for one (no if not, or if it cannot be
+    told)."""
     try:
-        return await judge.judge(character, history, text, affinity, photo, days)
+        return await judge.judge(character, history, text, affinity, photo, days, nsfw)
     except JudgeError:
         log.warning("judging apart failed; affinity stays as it is, and no photo", exc_info=True)
         return None, False
@@ -744,19 +871,40 @@ class ConversationEngine:
         her_day = her_days(self._clock(), timezone)
         days = _days(her_day)
         judging = affinity is not None and not affinity.cooling
+        # The intimate tier's question only where a scene opens there (`affinity.nsfw_open`),
+        # so that every other turn is judged as it always was.
+        nsfw = affinity is not None and nsfw_open(affinity.tier, affinity.cooling)
         asking_photo = eligibility is not None
         judged_apart = None
         if (judging or asking_photo) and self._retrieval is None and self._affinity_judge:
             judged_apart = asyncio.ensure_future(_judged(
-                self._affinity_judge, character, history, text, judging, asking_photo, days
+                self._affinity_judge, character, history, text, judging, asking_photo, days, nsfw
             ))
+        # Whether she let him ask for something past the usual, at her highest affinity: read
+        # by the judge model, as the words she lets him with are a meaning and not a phrase
+        # (`photo_judge.ALLOW_QUESTION`).
+        #
+        # Asked about the turn he actually asks in — 「还有个很过分的请求，可以吗」, not the one
+        # that names the picture. Her yes comes one turn later than his asking, and the picture
+        # he names comes one turn after that, so the asking is looked for in the turns just
+        # before this one, and the answer in hers (`_when_he_asked`).
+        asked_at, her_reply = _when_he_asked(messages)
+        ordering = (
+            affinity is not None
+            and affinity.value >= HIGHEST
+            and self._affinity_judge is not None
+            and her_reply is not None
+        )
+        allowed_order = asyncio.ensure_future(
+            _allowed_to_order(self._affinity_judge, character, her_reply, asked_at)
+        ) if ordering else None
         try:
             memory = await self._memory.begin(
                 conversation, timezone, llms.background, llms.hold_background
             )
             retrieved = (
                 await self._retrieval.retrieve(
-                    character, history, text, memory, judging, asking_photo, days
+                    character, history, text, memory, judging, asking_photo, days, nsfw
                 )
                 if self._retrieval
                 else Retrieved(None)
@@ -783,12 +931,19 @@ class ConversationEngine:
             hurt_before = [t.hurt for t in earlier]
         ending = ends(judged, cools, out_of_line_before, hurt_before)
         way: Parting = "hangs_up" if in_call is not None else "parts"
+        # Whether the latest turns took a scene past what the tier that opens one stops at:
+        # for a turn back either way, so that the turn right after it is still in its wake,
+        # and read even where this turn is not itself one — a photo asked for afterwards is
+        # the scene's, and told so (`photos.photo_turn(after=...)`).
+        scene_before = await self._store.lately_beyond(conversation.id, 2 * FED_UP_TURNS)
         affinity_lines = (
             affinity_prompt(
                 affinity.tier,
                 judged,
                 way if ending or cools else None,
                 way if warns(judged, cools, out_of_line_before, hurt_before) else None,
+                scene_before,
+                in_call is not None,
             )
             if affinity is not None
             else []
@@ -797,7 +952,13 @@ class ConversationEngine:
             self._world.prompt(character.name, local_date(now, timezone)) if self._world else None
         )
         photo_asked = (
-            photo_turn(asked_photo, affinity and affinity.tier, eligibility)
+            photo_turn(
+                asked_photo, affinity and affinity.tier, eligibility,
+                promised=_promised_a_photo(messages),
+                bare=_bare_in_words(messages),
+                after=scene_before,
+                ordered=await allowed_order if allowed_order is not None else False,
+            )
             if eligibility is not None else None
         )
         about_photo = CANNOT_SEND if eligibility is None else photo_asked and photo_asked.prompt
@@ -845,7 +1006,8 @@ class ConversationEngine:
                             if isinstance(event, PhotoTagged):
                                 if photo_asked and photo_asked.keeps_tag:
                                     yield self._begin_photo(
-                                        character, event.tag, conversation.user_id, photo
+                                        character, event.tag, conversation.user_id, photo,
+                                        affinity and affinity.tier,
                                     )
                                 continue
                             yield event
@@ -875,7 +1037,11 @@ class ConversationEngine:
             raise EmptyReply("对话模型没有返回任何内容")
         typed = (
             None if in_call is not None
-            else Typed(hurt(judged), judged is not None and judged.out_of_line)
+            else Typed(
+                hurt(judged),
+                judged is not None and judged.out_of_line,
+                judged is not None and judged.beyond,
+            )
         )
         ends_conversation = typed is not None and ending is not None
         # Once handed in, the turn is recorded whatever becomes of it, and what comes of that
@@ -1071,11 +1237,12 @@ class ConversationEngine:
         return await self._photos.came_out(photo_id, user_id)
 
     def _begin_photo(
-        self, character: Character, tag: str, user_id: str, photo: _Photo
+        self, character: Character, tag: str, user_id: str, photo: _Photo, tier: Tier | None = None
     ) -> PhotoPending:
-        """Begin the photo her `tag` says, the turn's one, for the user."""
+        """Begin the photo her `tag` says, the turn's one, for the user; her affinity in
+        `tier` says whether it is one the intimate tier lifts the line of."""
         assert self._photos is not None
-        photo.id, photo.tag = self._photos.begin(character, tag, user_id, photo.own), tag
+        photo.id, photo.tag = self._photos.begin(character, tag, user_id, photo.own, tier), tag
         return PhotoPending(photo.id)
 
     @property
@@ -1224,7 +1391,12 @@ class ConversationEngine:
         should any photo of the history not have been sent, what that means, then `closing`:
         what retrieval found, or how she is to reach out."""
         # What every user's turns with her that day open with, apart, for a service to cache.
-        shared = [*always_known(character, world_prompt), format_instructions(voiced_by)]
+        # The names go in with it: the subtitle is hers to write, and left to the romaji it
+        # wrote 露卡 for ルカ (`.scratch/nsfw/`).
+        shared = [
+            *always_known(character, world_prompt),
+            format_instructions(voiced_by, _Names.chinese(self._characters)),
+        ]
         prompt = [
             ChatMessage("system", "\n\n".join(shared), cache_breakpoint=True),
             ChatMessage("system", about_producer),
@@ -1247,4 +1419,65 @@ class ConversationEngine:
         context += closing
         prompt.append(ChatMessage("system", "\n\n".join(context)))
         prompt.append(ChatMessage("user", f"{narration.get(None, '')}{text}"))
+        # Last of all, where the model reads it as it starts writing: the history above may be
+        # all Chinese, and a turn that follows it in Chinese is a turn with no Japanese in it
+        # (`.scratch/nsfw/`). Said here because it is the history that pulls it off course.
+        prompt.append(ChatMessage("system", _IN_JAPANESE))
         return prompt
+
+_SIMPLIFIED = str.maketrans({
+    "櫻": "樱", "織": "织", "宮": "宫", "鐘": "钟", "岡": "冈", "瀬": "濑", "結": "结",
+    "華": "华", "倉": "仓", "淺": "浅", "霧": "雾", "雛": "雏", "緋": "绯",
+    "沢": "泽", "樹": "树", "葉": "叶", "駒": "驹", "園": "园", "鳩": "鸠", "鈴": "铃",
+    "陽": "阳",
+})
+"""The characters her sheet writes the traditional way, as the subtitles write them."""
+
+_SHORT_AS_IS: dict[str, str] = {
+    "めぐる": "巡",
+    "にちか": "日花",
+    "あさひ": "朝日",
+    "はるき": "阳希",
+    "はづき": "叶月",
+}
+"""Short names written in kana, and the ones a slice reads wrong.
+
+「八宮めぐる」 is 「八宫巡」 and she is called 「巡」; 「七草にちか」 is 「七草日花」, whose last three
+characters are 「草日花」, so she is 「日花」. A kana short name has no characters to take from
+the Chinese one at all — 「あさひ」, 「はるき」, 「はづき」 — and slicing it gave 「泽朝日」,
+「田阳希」, 「草叶月」."""
+
+
+def _short_chinese(short: str, chinese: str) -> str:
+    """Her short name in Chinese: the last as many characters of the Chinese name as the
+    short name has, written the simplified way where it is not.
+
+    「甘奈」 from 「大崎甘奈」 keeps 「甘奈」; 「灯織」 from 「风野灯织」 comes out 「灯织」.
+    Where the two are the same length there is no shorter form to cut — 「めぐる」 from
+    「八宫巡」 — and the short names in kana have none to cut from at all."""
+    if short in _SHORT_AS_IS:
+        return _SHORT_AS_IS[short]
+    tail = chinese[-(len(short)):] if len(short) < len(chinese) else chinese
+    return tail.translate(_SIMPLIFIED)
+
+
+class _Names:
+    """The one thing the prompt needs of the characters as a whole: how they are written."""
+
+    @staticmethod
+    def chinese(characters: Mapping[str, Character]) -> dict[str, str]:
+        """Each her name in Japanese, and as this deployment writes it in Chinese, for the
+        subtitles (`reply_format.names_instructions`).
+
+        Her short name is given as the short form of the Chinese one — 「甘奈」 as 「甘奈」, not
+        as 「大崎甘奈」 — so that the subtitle keeps the way she is spoken to."""
+        names: dict[str, str] = {}
+        for other in characters.values():
+            chinese = getattr(other, "name_zh", None)
+            short = getattr(other, "short_name", None)
+            if not chinese or not other.name:
+                continue
+            names[other.name] = chinese
+            if short and short != other.name:
+                names[short] = _short_chinese(short, chinese)
+        return names

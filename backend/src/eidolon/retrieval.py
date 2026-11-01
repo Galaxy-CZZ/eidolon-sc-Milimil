@@ -139,10 +139,13 @@ class RetrievalJudge(Protocol):
         affinity: bool = False,
         photo: bool = False,
         days: Days | None = None,
+        nsfw: bool = False,
     ) -> tuple[Need, Judged | None, bool]:
         """What answering `text` needs looked up; asked about `affinity` too, what saying it
         does to her affinity (None if that alone cannot be told), the considerate question
-        asked too in her `days`; and asked about `photo`, whether it asks her for a photo (no if that alone cannot be told)."""
+        asked too in her `days` and the intimate tier's (`nsfw`) where it opens one; and
+        asked about `photo`, whether it asks her for a photo (no if that alone cannot be
+        told)."""
         ...
 
 
@@ -339,10 +342,12 @@ class Retrieval:
         affinity: bool = False,
         photo: bool = False,
         days: Days | None = None,
+        nsfw: bool = False,
     ) -> Retrieved:
         """Look up what this turn needs, finding the user's memories through `memory`; and
-        judge what it does to her affinity, in her `days` if she is in them, and whether it
-        asks her for a photo, if asked to."""
+        judge what it does to her affinity, in her `days` if she is in them, whether it went
+        past what a scene of the intimate tier stops at (`nsfw`), and whether it asks her for
+        a photo, if asked to."""
         query = memory_query(history, text)
         embedding = asyncio.ensure_future(self._embed(query))
         finding = asyncio.ensure_future(self._find(character, embedding, memory))
@@ -351,7 +356,7 @@ class Retrieval:
             judged, asked = None, False
             try:
                 need, judged, asked = await self._judge.judge(
-                    character, history, text, affinity, photo, days
+                    character, history, text, affinity, photo, days, nsfw
                 )
             except JudgeError:
                 log.warning("retrieval judge failed; retrieving anyway", exc_info=True)
@@ -635,14 +640,18 @@ _QUESTIONS = {
 
 
 def judge_questions(
-    affinity: bool = False, photo: bool = False, days: Days | None = None
+    affinity: bool = False,
+    photo: bool = False,
+    days: Days | None = None,
+    nsfw: bool = False,
 ) -> dict[str, dict]:
     """What the judge model is asked of a turn: retrieval's three questions, affinity's in
-    the same request if `affinity`, the considerate question with them in her `days`, and
-    whether it asks for a photo if `photo`."""
+    the same request if `affinity`, the considerate question with them in her `days`, the
+    intimate tier's where `nsfw` says it opens one, and whether it asks for a photo if
+    `photo`."""
     return (
         _QUESTIONS
-        | (affinity_questions(days) if affinity else {})
+        | (affinity_questions(days, nsfw) if affinity else {})
         | (PHOTO_QUESTIONS if photo else {})
     )
 
@@ -678,17 +687,18 @@ class ModelRetrievalJudge:
         affinity: bool = False,
         photo: bool = False,
         days: Days | None = None,
+        nsfw: bool = False,
     ) -> tuple[Need, Judged | None, bool]:
         """As `RetrievalJudge.judge`, affinity's questions and the photo's asked in the same
         request."""
         answers = await self._judge_model.ask(
-            turn_state(character, history, text), judge_questions(affinity, photo, days)
+            turn_state(character, history, text), judge_questions(affinity, photo, days, nsfw)
         )
         need = self.decide(_answer(answers))
         judged = None
         if affinity:
             try:
-                judged = read_judged(answers, self.thresholds, days)
+                judged = read_judged(answers, self.thresholds, days, nsfw)
             except JudgeError:
                 log.warning("affinity judge's answers could not be read", exc_info=True)
         asked = False

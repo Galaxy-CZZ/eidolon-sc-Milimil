@@ -14,6 +14,7 @@ import {
   isOutdated,
   keepDrafts,
   localNow,
+  openWeeks,
   type Placement,
   readDrafts,
   type Schedule,
@@ -128,7 +129,9 @@ export function useCalendar({ years }: { years: (today: string) => readonly numb
   const scheduleNow = schedule?.enabled ? localNow(schedule.timezone, clock) : null;
   const drafts = useMemo(() => {
     if (!schedule?.enabled || !userId) return new Map<string, Placement[]>();
-    const weeks = schedule.next_week ? [schedule.this_week, schedule.next_week] : [schedule.this_week];
+    // 这一组能排的每一周：本周，和跟它一起开的后面几周（`OPEN_WEEKS`）。少算一周，
+    // 那一周的草稿就会被 `readDrafts` 当成过期的删掉，放进去的东西随即不见。
+    const weeks = openWeeks(schedule);
     const stored = readDrafts(userId, weeks.map((week) => week.id));
     return new Map(weeks.map((week) => [week.id, draftsOf(week, stored.get(week.id) ?? [])]));
     // draftsKept 不在里面用到：存下以后靠它重新从本机读。

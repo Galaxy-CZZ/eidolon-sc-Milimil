@@ -49,7 +49,14 @@ function weekOf(id: string, fields: Partial<Week> = {}): Week {
 }
 
 function scheduleOf(fields: Partial<OpenSchedule> = {}): OpenSchedule {
-  return { enabled: true, timezone: "Asia/Shanghai", this_week: weekOf(WEEK), next_week: null, ...fields };
+  return {
+    enabled: true,
+    timezone: "Asia/Shanghai",
+    this_week: weekOf(WEEK),
+    weeks: [weekOf(NEXT), weekOf("2026-11-02")],
+    next_week: weekOf(NEXT),
+    ...fields,
+  };
 }
 
 describe("此刻在制作人那边是哪一周、周几、几点", () => {
@@ -113,12 +120,13 @@ describe("制作人那边的本周、下周和发布", () => {
     expect(publishedAt(WEEK).toISOString()).toBe("2026-10-18T16:00:00.000Z");
   });
 
-  it("平常只有本周，下周还没发布", () => {
-    // 北京周三下午。
+  it("本周、下周、下下周一起开放", () => {
+    // 北京周三下午：这一组的三周都排得了。
     expect(weeksAt("Asia/Shanghai", new Date("2026-10-21T06:30:00Z"))).toEqual({
       thisWeek: WEEK,
       isPublished: true,
-      nextWeek: null,
+      nextWeek: NEXT,
+      open: [WEEK, NEXT, "2026-11-02"],
     });
   });
 
@@ -128,31 +136,28 @@ describe("制作人那边的本周、下周和发布", () => {
       thisWeek: WEEK,
       isPublished: true,
       nextWeek: NEXT,
+      open: [WEEK, NEXT, "2026-11-02"],
     });
   });
 
   it("北京以东周一凌晨本周还没发布", () => {
-    // 奥克兰周一 0:30，北京还是周日 19:30。
+    // 奥克兰周一 0:30，北京还是周日 19:30：本周还没开，往后的两周也就不算。
     expect(weeksAt("Pacific/Auckland", new Date("2026-10-25T11:30:00Z"))).toEqual({
       thisWeek: NEXT,
       isPublished: false,
       nextWeek: null,
+      open: [],
     });
   });
 
-  it("换了周、或者该发布的发布了，读到的日程就过时了", () => {
-    const read = scheduleOf({ this_week: weekOf(WEEK), next_week: null });
+  it("换了周，或者开放的那几周变了，读到的日程就过时了", () => {
+    const read = scheduleOf();
     expect(isOutdated(read, new Date("2026-10-21T06:30:00Z"))).toBe(false);
-    // 上海已经到了下一周。
+    // 上海已经到了下一周：这一组换了一批。
     expect(isOutdated(read, new Date("2026-10-26T01:00:00Z"))).toBe(true);
-    // 洛杉矶那边下周发布了。
-    const west = { ...read, timezone: "America/Los_Angeles" };
-    expect(isOutdated(west, new Date("2026-10-25T15:59:00Z"))).toBe(false);
-    expect(isOutdated(west, new Date("2026-10-25T16:00:00Z"))).toBe(true);
-    // 奥克兰那边本周的工作发布了。
-    const east = scheduleOf({ timezone: "Pacific/Auckland", this_week: { ...weekOf(NEXT), published: false } });
-    expect(isOutdated(east, new Date("2026-10-25T15:59:00Z"))).toBe(false);
-    expect(isOutdated(east, new Date("2026-10-25T16:00:00Z"))).toBe(true);
+    // 奥克兰周一 0:30（北京还是周日 19:30）：本周的工作还没发布，读到的却是发布了。
+    const east = scheduleOf({ timezone: "Pacific/Auckland" });
+    expect(isOutdated(east, new Date("2026-10-25T15:59:00Z"))).toBe(true);
   });
 });
 

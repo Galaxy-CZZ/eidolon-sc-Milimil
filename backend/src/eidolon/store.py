@@ -341,11 +341,12 @@ class Message:
 @dataclass(frozen=True)
 class Typed:
     """What a typed turn, one taken outside calls, comes to for her ending the conversation
-    (GLOSSARY.md「已结束的对话」): how much it hurt her (`affinity.hurt`), and
-    whether it was out of line."""
+    (GLOSSARY.md「已结束的对话」): how much it hurt her (`affinity.hurt`),
+    whether it was out of line, and whether it was a scene one (`beyond`, `.scratch/nsfw/`)."""
 
     hurt: float = 0.0
     out_of_line: bool = False
+    beyond: bool = False
 
 
 @dataclass(frozen=True)
@@ -809,6 +810,12 @@ class Store:
         and those recorded before typed turns were counted, are not among them."""
         return await self._db.read(_typed_turns, conversation_id, latest)
 
+    async def lately_beyond(self, conversation_id: str, latest: int) -> bool:
+        """Whether any of the conversation's `latest` typed turns went past what a scene of
+        the intimate tier stops at (`.scratch/nsfw/`): the turn after one is still in its
+        wake. False where the column is not there, as before there were scenes."""
+        return await self._db.read(_lately_beyond, conversation_id, latest)
+
     async def list_messages(self, conversation_id: str) -> list[Message]:
         """The conversation's messages, each reply with its photo, if any, but not its
         picture."""
@@ -899,6 +906,7 @@ def _open(db: sqlite3.Connection) -> None:
     _add_missing_columns(db, "messages", ("affinity",), "TEXT")
     _add_missing_columns(db, "messages", ("hurt",), "REAL")
     _add_missing_columns(db, "messages", ("out_of_line",), "INTEGER")
+    _add_missing_columns(db, "messages", ("beyond",), "INTEGER")
     _add_missing_columns(db, "conversations", ("title",), "TEXT")
     _add_missing_columns(db, "conversation_events", ("gift_id",), "TEXT")
     _add_missing_columns(db, "conversation_events", ("liked",), "INTEGER NOT NULL DEFAULT 0")
@@ -1638,6 +1646,18 @@ def _typed_turns(db: sqlite3.Connection, conversation_id: str, latest: int) -> l
     return [Typed(hurt, bool(out_of_line)) for hurt, out_of_line in reversed(rows)]
 
 
+def _lately_beyond(db: sqlite3.Connection, conversation_id: str, latest: int) -> bool:
+    columns = {row[1] for row in db.execute("PRAGMA table_info(messages)")}
+    if "beyond" not in columns:
+        return False
+    row = db.execute(
+        "SELECT 1 FROM messages WHERE conversation_id = ? AND role = 'user'"
+        " AND beyond = 1 ORDER BY id DESC LIMIT ?",
+        (conversation_id, latest),
+    ).fetchone()
+    return row is not None
+
+
 def _list_messages(db: sqlite3.Connection, conversation_id: str) -> list[Message]:
     rows = by_name(db).execute(
         f"SELECT {_MESSAGE_WITH_PHOTO} WHERE m.conversation_id = ? ORDER BY m.id",
@@ -1898,11 +1918,11 @@ def _insert_message(
         zh = "".join(s.zh for s in segments)
     cursor = db.execute(
         "INSERT INTO messages (conversation_id, role, text, ja, zh, segments, created_at,"
-        " affinity, hurt, out_of_line) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        " affinity, hurt, out_of_line, beyond) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         (
             conversation_id, role, text, ja, zh, _stored_segments(segments), created_at,
             _stored_change(affinity),
-            typed and typed.hurt, typed and int(typed.out_of_line),
+            typed and typed.hurt, typed and int(typed.out_of_line), typed and int(typed.beyond),
         ),
     )
     assert cursor.lastrowid is not None
