@@ -37,6 +37,7 @@ activity record.
 """
 
 import json
+import logging
 import random
 import sqlite3
 from collections.abc import Callable, Iterable, Sequence
@@ -54,6 +55,8 @@ from eidolon.producer import effective_timezone
 from eidolon.store import read_profile
 from eidolon.today import tokyo_date
 from eidolon.world import World
+
+log = logging.getLogger(__name__)
 
 _SCHEMA = """
 -- Each week's jobs, drawn as the week was first read and kept as the job list had them then:
@@ -219,9 +222,10 @@ class ScheduleView:
 
     @property
     def next_week(self) -> Week | None:
-        """The week after this one, if it is open: what the page showed before there were
-        three."""
-        return self.weeks[0] if self.weeks else None
+        """The week after this one once it is published, as it was before there were three:
+        None until the group opens."""
+        following = self.weeks[0] if self.weeks else None
+        return following if following is not None and following.published else None
 
     def shown(self) -> dict:
         return {
@@ -673,7 +677,18 @@ class Schedules:
             if published and not jobs:
                 if not writing:
                     return None
-                jobs = self._draw(db, week)
+                try:
+                    jobs = self._draw(db, week)
+                except ScheduleError:
+                    # This far ahead the list may be too thin to fill a whole week. What is
+                    # hers to read comes first, so the week is served empty and left
+                    # undrawn rather than the whole schedule failing on it — a deployment
+                    # whose list barely covers two weeks would otherwise see nothing at all
+                    # (`OPEN_WEEKS`; upstream drew two, `.scratch/nsfw/`).
+                    if step == 0:
+                        raise
+                    log.warning("a week could not be drawn: %s", week)
+                    published, jobs = False, []
             weeks.append(Week(
                 week, published_at(week), jobs,
                 _placements(db, user_id, week) if published else [], published,

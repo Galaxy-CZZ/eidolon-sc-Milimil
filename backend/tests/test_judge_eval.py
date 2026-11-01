@@ -348,9 +348,20 @@ class FakeAffinityJudgeModel:
             probabilities, out_of_line, manipulation = AFFINITY_ANSWERS[said]
             original = QUESTIONS["affinity"]["criteria"]
             asked = questions["affinity"]["criteria"]
+
+            def level_of(criterion: str, at: int) -> int:
+                """Which level `criterion` is, of `original`: the same text, or the level that
+                text was written in with more said of it after (a deployment may add its own
+                standing to one of them, `.scratch/nsfw/`)."""
+                if criterion in original:
+                    return original.index(criterion)
+                return next(
+                    (n for n, each in enumerate(original) if criterion.startswith(each)), at
+                )
+
             answers["affinity"] = {"type": "score", "probabilities": {
                 str(i): probabilities[
-                    str(i if said == FIRST_LEVEL_BIASED else original.index(criterion))
+                    str(i if said == FIRST_LEVEL_BIASED else level_of(criterion, i))
                 ]
                 for i, criterion in enumerate(asked)
             }}

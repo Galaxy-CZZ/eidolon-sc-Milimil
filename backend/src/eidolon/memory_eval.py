@@ -712,8 +712,10 @@ class _RecordedJudge:
         affinity: bool = False,
         photo: bool = False,
         days: Days | None = None,
+        nsfw: bool = False,
     ) -> tuple[Need, None, bool]:
-        """Never about affinity nor photos, which the memory eval has nothing to do with."""
+        """Never about affinity, photos, nor the line, which the memory eval has nothing to do
+        with."""
         try:
             answer = await self._judge.ask(character, history, text)
         except JudgeError as e:

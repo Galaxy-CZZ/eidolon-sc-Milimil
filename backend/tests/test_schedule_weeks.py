@@ -76,7 +76,11 @@ async def test_a_week_is_drawn_as_first_read_seven_idols_the_same_for_everyone_a
 
     week = first["this_week"]
     assert first["enabled"] is True
-    assert (week["id"], week["published"], first["next_week"]) == ("2026-09-21", True, None)
+    assert (week["id"], week["published"]) == ("2026-09-21", True)
+    # This week and the two after it open together (`OPEN_WEEKS`, `.scratch/nsfw/`).
+    assert [w["id"] for w in first["weeks"]] == ["2026-09-21", "2026-09-28", "2026-10-05"]
+    assert [w["published"] for w in first["weeks"]] == [True, True, True]
+    assert first["next_week"]["id"] == "2026-09-28"
     assert len(whose(week)) == 7 and "hazuki" not in whose(week)
     assert week["placements"] == []
     job = week["jobs"][0]
@@ -103,7 +107,7 @@ async def test_every_idol_has_her_week_once_in_four_running(make_client: ClientF
     assert Counter(c for week in drawn for c in week) == Counter(IDOLS)
 
 
-async def test_a_changed_list_leaves_the_week_published_as_it_was_and_draws_the_next_from_it(
+async def test_a_changed_list_leaves_the_weeks_drawn_as_they_were_and_draws_the_next_from_it(
     make_client: ClientFactory, characters: CharacterConfig
 ):
     clock = FakeClock(MONDAY + timedelta(days=2))
@@ -117,13 +121,15 @@ async def test_a_changed_list_leaves_the_week_published_as_it_was_and_draws_the_
 
     this_week = (await schedule(client))["this_week"]
     clock.advance(days=7)
-    next_week = (await schedule(client))["this_week"]
+    ahead = (await schedule(client))["weeks"]
 
     assert this_week == before
-    assert all(j["name"].startswith("新") for j in next_week["jobs"])
+    # A week drawn before the list changed keeps what it was drawn from; whatever is drawn
+    # from now on comes from the new list (`OPEN_WEEKS`, `.scratch/nsfw/`).
+    assert all(j["name"].startswith("新") for j in ahead[2]["jobs"])
 
 
-async def test_west_of_beijing_next_week_is_there_on_sunday_once_monday_has_begun_in_beijing(
+async def test_west_of_beijing_the_three_weeks_open_from_this_weeks_monday_in_beijing(
     make_client: ClientFactory,
 ):
     clock = FakeClock(MONDAY + timedelta(days=7, minutes=-1))  # Sunday 23:59 in Beijing
@@ -134,7 +140,10 @@ async def test_west_of_beijing_next_week_is_there_on_sunday_once_monday_has_begu
     clock.advance(minutes=1)
     after = await schedule(client)
 
-    assert (before["this_week"]["id"], before["next_week"]) == ("2026-09-21", None)
+    # The group this week opened on its own Monday, so the two after it are there already.
+    assert before["this_week"]["id"] == "2026-09-21"
+    assert [w["id"] for w in before["weeks"]] == ["2026-09-21", "2026-09-28", "2026-10-05"]
+    assert [w["published"] for w in before["weeks"]] == [True, True, True]
     assert after["this_week"] == before["this_week"]
     assert after["next_week"]["id"] == "2026-09-28"
     assert after["next_week"]["published"] is True

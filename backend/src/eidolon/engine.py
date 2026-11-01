@@ -1417,12 +1417,13 @@ class ConversationEngine:
         if any(m.photo_failed for m in history):
             context.append(NOT_RECEIVED)
         context += closing
+        # Last of what changes each turn, right before his words: the history may be all
+        # Chinese, and a turn that follows it in Chinese is a turn with no Japanese in it
+        # (`.scratch/nsfw/`). Here rather than after his line, which is where the prompt is
+        # built to end.
+        context.append(_IN_JAPANESE)
         prompt.append(ChatMessage("system", "\n\n".join(context)))
         prompt.append(ChatMessage("user", f"{narration.get(None, '')}{text}"))
-        # Last of all, where the model reads it as it starts writing: the history above may be
-        # all Chinese, and a turn that follows it in Chinese is a turn with no Japanese in it
-        # (`.scratch/nsfw/`). Said here because it is the history that pulls it off course.
-        prompt.append(ChatMessage("system", _IN_JAPANESE))
         return prompt
 
 _SIMPLIFIED = str.maketrans({

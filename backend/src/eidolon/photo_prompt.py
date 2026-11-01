@@ -436,7 +436,7 @@ def image_prompt(
     rating = (NSFW_RATING,) if adult else ()
     quality = NSFW_QUALITY_TAGS if adult else QUALITY_TAGS
     positive = (
-        "1girl", "solo", *_styled(style), character.photo_tag, WORK_TAG,
+        "1girl", "solo", character.photo_tag, WORK_TAG, *_styled(style),
         character.photo_appearance, *_shot_tags(tag.shot), tag.framing, *tag.place,
         *tag.outfit, *action, *rating, *quality,
     )
@@ -454,13 +454,8 @@ def check_prompt(style: str = "") -> ImagePrompt:
 
 
 def _styled(style: str) -> tuple[str, ...]:
-    """The art style as it is written into a prompt: as it is, or not at all if empty.
-
-    Weighted, and written early, so that it holds the picture's look whichever way the rest
-    of the prompt leans: left as one more tag among many, it lost against a prompt heavy
-    with what the photo shows, and the same style came out differently at each step
-    (`.scratch/nsfw/`)."""
-    return (f"({style.strip()}:1.3)",) if style.strip() else ()
+    """The art style as it is written into a prompt: as it is, or not at all if empty."""
+    return (style.strip(),) if style.strip() else ()
 
 
 def _shot_tags(shot: Shot) -> tuple[str, ...]:
