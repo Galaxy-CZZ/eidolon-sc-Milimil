@@ -68,7 +68,7 @@ administrator has reviewed it and removed the line; the marker never reaches the
 import logging
 import re
 import tomllib
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TypeVar
@@ -501,3 +501,56 @@ def parse_facts(markdown: str) -> tuple[Fact, ...]:
             body.append(line)
     flush()
     return tuple(facts)
+
+_SIMPLIFIED = str.maketrans({
+    "櫻": "樱", "織": "织", "宮": "宫", "鐘": "钟", "岡": "冈", "瀬": "濑", "結": "结",
+    "華": "华", "倉": "仓", "淺": "浅", "霧": "雾", "雛": "雏", "緋": "绯",
+    "沢": "泽", "樹": "树", "葉": "叶", "駒": "驹", "園": "园", "鳩": "鸠", "鈴": "铃",
+    "陽": "阳",
+})
+"""The characters a sheet writes the traditional way, as the subtitles write them."""
+
+_SHORT_AS_IS: dict[str, str] = {
+    "めぐる": "巡",
+    "にちか": "日花",
+    "あさひ": "朝日",
+    "はるき": "阳希",
+    "はづき": "叶月",
+}
+"""Short names written in kana, and the ones a slice reads wrong.
+
+「八宮めぐる」 is 「八宫巡」 and she is called 「巡」; 「七草にちか」 is 「七草日花」, whose last three
+characters are 「草日花」, so she is 「日花」. A kana short name has no characters to take from
+the Chinese one at all — 「あさひ」, 「はるき」, 「はづき」 — and slicing it gave 「泽朝日」,
+「田阳希」, 「草叶月」."""
+
+
+def short_chinese(short: str, chinese: str) -> str:
+    """Her short name in Chinese: the last as many characters of the Chinese name as the
+    short name has, written the simplified way where it is not.
+
+    「甘奈」 from 「大崎甘奈」 keeps 「甘奈」; 「灯織」 from 「风野灯织」 comes out 「灯织」.
+    Where the two are the same length there is no shorter form to cut — 「めぐる」 from
+    「八宫巡」 — and the short names in kana have none to cut from at all."""
+    if short in _SHORT_AS_IS:
+        return _SHORT_AS_IS[short]
+    tail = chinese[-(len(short)):] if len(short) < len(chinese) else chinese
+    return tail.translate(_SIMPLIFIED)
+
+
+def chinese_names(characters: Mapping[str, "Character"]) -> dict[str, str]:
+    """Each her name in Japanese, and as this deployment writes it in Chinese: her full name
+    and her short one, for whoever writes a subtitle (`reply_format.names_instructions`).
+
+    Her short name is given as the short form of the Chinese one — 「甘奈」 as 「甘奈」, not as
+    「大崎甘奈」 — so that the subtitle keeps the way she is spoken to."""
+    names: dict[str, str] = {}
+    for other in characters.values():
+        chinese = getattr(other, "name_zh", None)
+        short = getattr(other, "short_name", None)
+        if not chinese or not other.name:
+            continue
+        names[other.name] = chinese
+        if short and short != other.name:
+            names[short] = short_chinese(short, chinese)
+    return names

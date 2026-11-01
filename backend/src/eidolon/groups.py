@@ -36,7 +36,7 @@ from datetime import time as clock_time
 from zoneinfo import ZoneInfo
 
 from eidolon.affinity import Affinities, tier_prompt
-from eidolon.characters import Character
+from eidolon.characters import Character, chinese_names
 from eidolon.clock import Clock
 from eidolon.data_access import Database
 from eidolon.llm import ChatMessage
@@ -105,6 +105,15 @@ enough not to drown it."""
 PAST_LINES = 14
 """How many of the lines of the same group's earlier topics a speaker is shown: the group's
 own history, which she can pick up or refer back to."""
+
+TOPIC_RECALL = 12
+"""How many of the group's earlier topics its next one is told about, to stay off them.
+
+Without this the only material a topic had was her character sheet, and the group went round
+the same three hooks for days (`.scratch/nsfw/`)."""
+
+MATERIAL_MEMORIES = 6
+"""How many of her memories of the producer a speaker is shown as something to talk from."""
 
 HISTORY_TOPICS = 50
 """How many topics the page is given: the whole readable history of the group."""
@@ -596,9 +605,11 @@ class Groups:
         if not members:
             return None
         recent = state["lines"][-6:]
+        # What it has been talking about, latest first, so the new topic can stay off it.
+        past = [entry["topic"]["text"] for entry in reversed(state["history"])][:TOPIC_RECALL]
         raiser = members[secrets.randbelow(len(members))]
         try:
-            said = await self._raise(user_id, members, raiser, recent)
+            said = await self._raise(user_id, members, raiser, recent, past)
         except Exception:
             log.warning("a member could not raise a topic", exc_info=True)
             return None
@@ -611,13 +622,61 @@ class Groups:
         return topic_id
 
     async def _raise(
-        self, user_id: str, members: Sequence[Member], raiser: Member, recent: Sequence[dict]
+        self, user_id: str, members: Sequence[Member], raiser: Member, recent: Sequence[dict],
+        past: Sequence[str],
     ) -> Said:
         system = await self._system(user_id, raiser)
-        prompt = _topic_prompt(system, raiser, members, recent)
+        material = await self._material(user_id, raiser)
+        prompt = _topic_prompt(
+            system, raiser, members, recent,
+            self._names_block(members), past, material,
+        )
         answer = await self._ask(prompt)
         said = _parse_line(answer) or Said("今天想聊点什么呢。", "今天想聊点什么好呢。")
         return said if said.zh else await self._subtitle(said)
+
+    def _names_block(self, members: Sequence[Member]) -> str:
+        """How her names are written in the subtitles, for the prompt.
+
+        Those of this group spelled out one a line, as they are the ones she is talking to
+        and the ones that came out wrong; everyone else named once on a line of their own, so
+        that a name she brings up is not the model's to make up (`.scratch/nsfw/`).
+
+        Written tighter than `reply_format.names_instructions`, which a conversation reads
+        once a turn: a group writes a line every few seconds, and neither the header nor the
+        fallback is worth that many tokens each time."""
+        in_group = {
+            member.id: self._characters[member.id]
+            for member in members
+            if member.id in self._characters
+        }
+        names = chinese_names(in_group)
+        rest = {ja: zh for ja, zh in chinese_names(self._characters).items() if ja not in names}
+        lines = ["# 名字怎么译", "字幕里提到人时照下面的中文名写，不要自己音译："]
+        lines += [f"- {ja} → {zh}" for ja, zh in names.items()]
+        if rest:
+            lines.append("其余人：" + "、".join(rest.values()))
+        lines.append("同一个名字在整段里写法要一致。")
+        return "\n".join(lines)
+
+    async def _material(self, user_id: str, member: Member) -> str:
+        """What she may talk from besides her own sheet: what she remembers of the producer.
+
+        Without something of the day's, a topic could only be made out of her character sheet,
+        and the group went round the same three hooks (`.scratch/nsfw/`)."""
+        if self._memories is None:
+            return ""
+        try:
+            held = await self._memories.kept(user_id)
+        except Exception:
+            log.warning("reading her memories for the group failed", exc_info=True)
+            return ""
+        hers = [memory for memory in held if memory.source_character_id == member.id]
+        if not hers:
+            return ""
+        return "她记得的和制作人的事：\n" + "".join(
+            f"- {memory.text}\n" for memory in hers[-MATERIAL_MEMORIES:]
+        )
 
     def _start_conversation(
         self, user_id: str, group_id: str, topic_id: str, members: Sequence[Member],
@@ -697,7 +756,10 @@ class Groups:
                 mention = max(0.0, BASE_MENTION - turn * MENTION_STEP)
                 outsiders = [m for m in members if m.id not in {speaker.id, last_speaker}]
                 system = await self._system(user_id, speaker)
-                prompt = _say_prompt(system, speaker, members, said, past, mention, outsiders)
+                prompt = _say_prompt(
+                    system, speaker, members, said, past, mention, outsiders,
+                    self._names_block([*members, *outsiders]),
+                )
                 try:
                     answer = await self._ask(prompt)
                 except Exception:
@@ -1006,17 +1068,26 @@ def _sheet(character: Character) -> str:
 
 
 def _topic_prompt(
-    system: str, raiser: Member, members: Sequence[Member], recent: Sequence[dict]
+    system: str, raiser: Member, members: Sequence[Member], recent: Sequence[dict],
+    names: str, past: Sequence[str], material: str,
 ) -> list[ChatMessage]:
     context = _context(recent)
     others = "、".join(m.name for m in members if m.id != raiser.id)
+    tired = "".join(f"- {text}\n" for text in past)
     user = (
-        (f"群聊最近说过：\n{context}\n\n" if context else "")
-        + "现在请你主动开一个新话题：像在群里随口说一句，引出你想聊的事，"
-        "一到两句，口语，不要问「有人在吗」，不要提「换个话题」，不要解释。\n"
-        "用 <ja>日语原文</ja><zh>中文字幕</zh> 输出；<ja> 里只写日语、不要混入中文；"
-        "<zh> 是这句日语的中文翻译；提到成员时一律用官方简体中文名（はるき 写成阳希，"
-        "不要写成春树；めぐる 写成巡），专有名词和拟声词可以保留原文，其余都要译成中文、不要夹日语；"
+        (f"# 她手边的素材\n{material}\n\n" if material else "")
+        + (f"# 这个群最近开过的话头\n{tired}\n" if tired else "")
+        + (f"# 刚说过的几句\n{context}\n\n" if context else "")
+        + "现在请你主动开一个新话题：像在群里随口说一句，引出你想聊的事。\n"
+        "- 说一件**具体**的事：今天遇到的、看到的、听到的、想到的一个细节。"
+        "不要只是感想、感慨、「今天也要加油」这种空话。\n"
+        "- 上面那些话头都聊过了，别回头再说它们；也别用「说到…」「…话说回来」把上一个"
+        "话题接着往下拖——这次自己另起一件不相干的事。\n"
+        "- 不要问「有人在吗」，不要提「换个话题」，不要解释。\n"
+        "- 一到两句，口语。\n"
+        + names
+        + "\n用 <ja>日语原文</ja><zh>中文字幕</zh> 输出；<ja> 里只写日语、不要混入中文；"
+        "<zh> 是这句日语的中文翻译；专有名词和拟声词可以保留原文，其余都要译成中文、不要夹日语；"
         "「ちゃん」「さん」这类称呼译成「酱」「小姐」或省略；不要留孤零零的假名；只输出这一组标签。"
     )
     return [ChatMessage("system", f"{system}\n群里的其他人：{others}"), ChatMessage("user", user)]
@@ -1024,13 +1095,13 @@ def _topic_prompt(
 
 def _say_prompt(
     system: str, speaker: Member, members: Sequence[Member], said: Sequence[Line],
-    past: Sequence[Line], mention: float, outsiders: Sequence[Member],
+    past: Sequence[Line], mention: float, outsiders: Sequence[Member], names: str,
 ) -> list[ChatMessage]:
-    names = {member.id: member.name for member in members}
+    spoken = {member.id: member.name for member in members}
     recent = list(said)[-RECENT_LINES:]
     # Her Japanese, not its subtitle: shown the Chinese, the model drifts into Chinese mid-line.
     context = "\n".join(
-        f"{names.get(line.speaker, '制作人')}：{line.text}" for line in [*past, *recent]
+        f"{spoken.get(line.speaker, '制作人')}：{line.text}" for line in [*past, *recent]
     )
     hint = ""
     if outsiders:
@@ -1045,9 +1116,10 @@ def _say_prompt(
         "补一句你自己的看法、或者顺着这个话题聊出一个相关的小话题。"
         "一到两句，口语，像群里随口说的；不要复述别人刚说过的，不要旁白，不要每句都提问。"
         + hint
+        + "\n"
+        + names
         + "\n用 <ja>日语原文</ja><zh>中文字幕</zh> 输出；<ja> 里只写日语、不要混入中文；"
-        "<zh> 是这句日语的中文翻译；提到成员时一律用官方简体中文名（はるき 写成阳希，"
-        "不要写成春树；めぐる 写成巡），专有名词和拟声词可以保留原文，其余都要译成中文、不要夹日语；"
+        "<zh> 是这句日语的中文翻译；专有名词和拟声词可以保留原文，其余都要译成中文、不要夹日语；"
         "「ちゃん」「さん」这类称呼译成「酱」「小姐」或省略；不要留孤零零的假名；只输出这一组标签。"
     )
     return [ChatMessage("system", system), ChatMessage("user", user)]
