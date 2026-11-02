@@ -58,12 +58,16 @@ broken, it is refused and nothing changes; anything else is served her and judge
 each order, whether she got drunk; nothing of what was said. Her visits with the user done
 are what she remembers of the bar, next time; a visit left before it is done is not.
 
-**Rewarded.** The user's first visit done of the day she came in on, while affinity and gifts
-are on (`LiveConfig.affinity_on`), is rewarded as it is written down, in the same transaction:
-a draw chance, held to the most kept (`Gifts.reward_draw`), keyed by the day; and her affinity
-raised by how well each drink was served (`Affinities.visit_done`), whether there was a best
-for its order or not (`bar_rules.has_best`). Told of as the visit is done; no conversation
-event, nothing in the conversations. Later visits that day give nothing.
+**Rewarded.** While affinity and gifts are on (`LiveConfig.affinity_on`), a visit done is
+rewarded as it is written down, in the same transaction: her affinity raised by how well each
+drink was served (`Affinities.visit_done`), whether there was a best for its order or not
+(`bar_rules.has_best`) — **on every visit**, not only the day's first; and a draw chance, held
+to the most kept (`Gifts.reward_draw`), keyed by the day, so **only the day's first** gives
+one. Told of as the visit is done; no conversation event, nothing in the conversations.
+
+(What this said before — that the day's first visit was the only one rewarded — was wrong,
+and read as though affinity were daily too. `_write_down` has always raised it every visit;
+`.scratch/nsfw/` is where the mismatch cost an answer.)
 
 Nothing of the bar is told to the conversations, nor written in them or in memory.
 """
