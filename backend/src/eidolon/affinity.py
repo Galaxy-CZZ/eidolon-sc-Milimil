@@ -203,6 +203,13 @@ RIGHT_WITH_NO_BEST_STEP = 0.5
 """How much a drink served right raises it instead, where nothing would have been better for
 its order (`bar_rules.has_best`): as much as best."""
 
+SERVED_SCALE = 2.0
+"""How much of the steps above a finished visit is worth, 1.0 being as they are written there.
+
+This deployment plays the bar at double (`.scratch/nsfw/`). Kept apart from `SERVED_STEPS` so
+that what upstream chose still reads as what it is, and so that tuning it again is this one
+number."""
+
 DRAWS_PER_DAY = 2
 """How many draw chances (GLOSSARY.md「抽奖」) the user is given each day (`day_of`), as it
 begins."""
@@ -843,14 +850,17 @@ class Affinities:
     ) -> bool:
         """Raise the user's affinity with the character for a visit to the bar done
         (GLOSSARY.md「光顾」), having been `served` those drinks, through `db`, in the
-        transaction the visit is written down in: by `SERVED_STEPS` averaged, in a cooldown too, as a job
-        done does. Whether it rose: not if it was as high as it goes."""
+        transaction the visit is written down in: by `SERVED_STEPS` averaged and `SERVED_SCALE`
+        times over, in a cooldown too, as a job done does. Whether it rose: not if it was as
+        high as it goes."""
         steps = [
             RIGHT_WITH_NO_BEST_STEP if d.how_well == "right" and not d.has_best
             else SERVED_STEPS[d.how_well]
             for d in served
         ]
-        before, after = self._raise(db, user_id, character_id, lambda _: sum(steps) / len(steps))
+        before, after = self._raise(
+            db, user_id, character_id, lambda _: SERVED_SCALE * sum(steps) / len(steps)
+        )
         return after.value > before.value
 
     def _raise(

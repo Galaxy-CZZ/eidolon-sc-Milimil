@@ -98,7 +98,7 @@ async def test_the_days_first_visit_done_gives_a_draw_and_raises_her_told_of_as_
 
     assert finished == {"type": "done", "rewarded": {"draws": 1, "affinity_up": True}}
     assert (before["draws"], after["draws"]) == (2, 3)
-    assert affinity(database) == 50.5  # served best
+    assert affinity(database) == 51.0  # served best, at SERVED_SCALE
     assert rewards(database) == [("bar:2026-09-25", 1)]
     assert after["rewarded_at"] == clock.now.isoformat()  # the navigation's dot lights
     assert count(database, "conversation_events") == events_before
@@ -114,24 +114,24 @@ UNNAMED = [her("いつもと違うのを。", "来杯和平时不一样的。", 
     ("ordered", "said", "drink", "raised_to"),
     [
         pytest.param(
-            (*ONE_SUGAR_RUSH, BY_NAME_BIG), COMING_IN, mixed("sugar-rush"), 50.4,
+            (*ONE_SUGAR_RUSH, BY_NAME_BIG), COMING_IN, mixed("sugar-rush"), 50.8,
             id="right, a best there",
         ),
         pytest.param(
-            (*ONE_SUGAR_RUSH, BY_NAME), COMING_IN, mixed("sugar-rush"), 50.5,
+            (*ONE_SUGAR_RUSH, BY_NAME), COMING_IN, mixed("sugar-rush"), 51.0,
             id="right by name, no best",
         ),
         pytest.param(
-            (*ONE_SUGAR_RUSH, BY_NAME), COMING_IN, mixed("sparkle-star"), 50.1, id="wrong"
+            (*ONE_SUGAR_RUSH, BY_NAME), COMING_IN, mixed("sparkle-star"), 50.2, id="wrong"
         ),
         # Of the drinks she likes, Sparkle Star, by its flavor: Sugar Rush would be best.
         pytest.param(
-            (0, 0, 0, 45, 0, 47), UNNAMED, mixed("sparkle-star"), 50.4,
+            (0, 0, 0, 45, 0, 47), UNNAMED, mixed("sparkle-star"), 50.8,
             id="right by flavor, a best there",
         ),
         # Of any, Brandtini, by its kind: none she loves is of it.
         pytest.param(
-            (0, 0, 0, 80, 11, 59), UNNAMED, mixed("brandtini"), 50.5,
+            (0, 0, 0, 80, 11, 59), UNNAMED, mixed("brandtini"), 51.0,
             id="right by kind, no best",
         ),
     ],
@@ -163,7 +163,7 @@ async def test_she_is_raised_by_the_average_of_her_drinks(
     await serve(client, visit_id, mixed("sugar-rush"))
     await serve(client, visit_id, mixed("fluffy-dream"))
 
-    assert affinity(settings.database_path) == pytest.approx(50.3)
+    assert affinity(settings.database_path) == pytest.approx(50.6)
 
 
 async def test_with_the_most_draws_kept_none_is_given_nor_recorded_but_she_is_raised(
@@ -185,11 +185,11 @@ async def test_with_the_most_draws_kept_none_is_given_nor_recorded_but_she_is_ra
     assert after["draws"] == 7
     assert rewards(database) == []
     assert after["rewarded_at"] is None
-    assert affinity(database) == 50.5
+    assert affinity(database) == 51.0
 
 
 @pytest.mark.parametrize(
-    ("cooled_at", "raised_to", "cooling"), [(9.6, 10.1, False), (0.0, 0.5, True)]
+    ("cooled_at", "raised_to", "cooling"), [(9.6, 10.6, False), (0.0, 1.0, True)]
 )
 async def test_in_a_cooldown_she_is_raised_the_same_out_of_it_at_the_thaw_line(
     make_client: ClientFactory,
@@ -213,7 +213,7 @@ async def test_in_a_cooldown_she_is_raised_the_same_out_of_it_at_the_thaw_line(
     assert ((await status(client)).json()["cooldown_until"] is not None) == cooling
 
 
-async def test_only_the_days_first_visit_done_is_rewarded_not_one_left_nor_those_after(
+async def test_only_the_days_first_visit_done_gives_a_draw_but_those_after_still_raise_her(
     make_client: ClientFactory, settings: Settings
 ):
     database = settings.database_path
@@ -237,11 +237,11 @@ async def test_only_the_days_first_visit_done_is_rewarded_not_one_left_nor_those
     assert rewarding_at_first is True
     assert after_leaving == (2, 50.0, True)
     assert first["rewarded"] == {"draws": 1, "affinity_up": True}
-    assert after_first == (3, 50.5, False)
-    assert second["rewarded"] is None
-    assert ((await state(client))["draws"], affinity(database)) == (3, 50.5)
+    assert after_first == (3, 51.0, False)
+    assert second["rewarded"] == {"draws": 0, "affinity_up": True}
+    assert ((await state(client))["draws"], affinity(database)) == (3, 52.0)
     assert rewards(database) == [("bar:2026-09-25", 1)]
-    assert [row["rewarded"] for row in visit_rows(database)] == [1, 0]
+    assert [row["rewarded"] for row in visit_rows(database)] == [1, 1]
 
 
 async def test_a_visit_is_of_the_day_she_came_in_on(
