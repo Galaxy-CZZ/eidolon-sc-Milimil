@@ -204,7 +204,13 @@ class JudgeModel(Protocol):
     async def aclose(self) -> None: ...
 
 
-JUDGE_TIMEOUT = httpx.Timeout(5, connect=3)
+JUDGE_TIMEOUT = httpx.Timeout(20, connect=8)
+"""How long a judge call may take, connecting and altogether.
+
+Loosened for this deployment (`.scratch/nsfw/`): a judge call is a model call, and over a
+proxy it takes a second or three, while the 5/3 upsteam chose dropped the call outright and
+took photo requests, affinity, memory and the call's emotions with it, silently. A judge that
+is really down now costs a longer wait, not a lost turn."""
 
 
 def _client() -> httpx.AsyncClient:
