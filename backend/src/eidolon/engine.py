@@ -384,13 +384,18 @@ _IN_JAPANESE = """\
 # 这一轮只写日语
 上面的对话里有中文，那只是字幕。你要说的是日语：`<ja>` 里必须是日语的假名和汉字，
 不能把中文当成日语填进去，`<zh>` 才是给你看的字幕。
-写完回头看一遍 `<ja>`：里面一个假名都没有，就是写错了，重写成日语再交出来。"""
+写完逐段回头看一遍 `<ja>`：哪一段读着像中文、或者一个假名都没有，就是写错了，重写成日语。
+每段都要单独合格——第一段最容易跟着他的中文走，尤其要检查。"""
 """The last thing she is told before she writes, after the history.
 
 The history pulls hardest: a conversation where every turn so far came back in Chinese had
 a turn come back in Chinese under `<ja>` — tags right, words wrong (`reply_format.is_japanese`
 is what reads it, but the stream has gone out by then, so the prompt is where it is
-mended)."""
+mended).
+
+Said of each paragraph, since what came back last was half and half:
+`<ja>開玩笑……那种东西</ja>`, the first paragraph in his Chinese and only the second in her
+own Japanese (`reply_format._FORMAT`, `.scratch/nsfw/`)."""
 
 
 _PROMISED_A_PHOTO = re.compile(
