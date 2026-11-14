@@ -10,6 +10,7 @@ Studio's decision model, served over System One itself. None stands in for anoth
 fails.
 """
 
+import asyncio
 import json
 import logging
 from collections.abc import Sequence
@@ -212,6 +213,17 @@ proxy it takes a second or three, while the 5/3 upsteam chose dropped the call o
 took photo requests, affinity, memory and the call's emotions with it, silently. A judge that
 is really down now costs a longer wait, not a lost turn."""
 
+JUDGE_TRIES = 3
+"""How many times a judge call is tried when the connection itself fails.
+
+The proxy this deployment goes through drops the connect now and then — 16% of a hundred
+calls one evening, each of them exactly at the connect timeout — and every drop cost the
+turn its photo request, its affinity and its memory in silence. Three tries separate those
+apart, which is the failure that matters, from the far rarer one where it is really down."""
+
+JUDGE_RETRY_PAUSE = 0.3
+"""Seconds to wait before trying again, times the attempt number: brief, since a turn waits."""
+
 
 def _client() -> httpx.AsyncClient:
     return httpx.AsyncClient(timeout=JUDGE_TIMEOUT)
@@ -336,14 +348,25 @@ class CloudflareJudge:
         return reply.answers
 
     async def reply(self, state: dict[str, Any], questions: dict[str, dict]) -> JudgeReply:
-        """As `ask`, with the input tokens Workers AI counted (after any truncating)."""
+        """As `ask`, with the input tokens Workers AI counted (after any truncating).
+
+        Connection failures are tried again (`JUDGE_TRIES`), since this deployment reaches
+        Workers AI over a proxy that drops the connect now and then: one lost call used to
+        take the turn's photo request, affinity, and memory with it (`.scratch/nsfw/`). A
+        refusal, or an answer that came back, is not tried again."""
         body = {"model": self._model, "state": state, "questions": questions}
-        try:
-            res = await self._client.post(
-                self._url, json=body, headers={"Authorization": f"Bearer {self._api_token}"}
-            )
-        except httpx.HTTPError as e:
-            raise JudgeError(f"无法连接 Cloudflare Workers AI：{e!r}") from e
+        for attempt in range(1, JUDGE_TRIES + 1):
+            try:
+                res = await self._client.post(
+                    self._url, json=body, headers={"Authorization": f"Bearer {self._api_token}"}
+                )
+                break
+            except (httpx.ConnectError, httpx.ConnectTimeout, httpx.ReadTimeout):
+                if attempt == JUDGE_TRIES:
+                    raise JudgeError(
+                        f"无法连接 Cloudflare Workers AI（试了 {JUDGE_TRIES} 次）"
+                    ) from None
+                await asyncio.sleep(JUDGE_RETRY_PAUSE * attempt)
         try:
             envelope = res.json()
         except ValueError:
