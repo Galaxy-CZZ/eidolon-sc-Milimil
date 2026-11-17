@@ -7,6 +7,7 @@ import { CallSettings } from "@/components/CallSettings";
 import { CyclesSettings } from "@/components/CyclesSettings";
 import { DataPackageSettings } from "@/components/DataPackageSettings";
 import { DeleteAccount } from "@/components/DeleteAccount";
+import { GroupsSettings } from "@/components/GroupsSettings";
 import { MemoriesSettings } from "@/components/MemoriesSettings";
 import { MomentsSettings } from "@/components/MomentsSettings";
 import { OwnKeysSettings } from "@/components/OwnKeysSettings";
@@ -24,6 +25,7 @@ const PANELS: Record<Exclude<SettingsCategory, "memories" | "stats">, ReactNode>
   call: <CallSettings />,
   "reach-outs": <ReachOutsSettings />,
   moments: <MomentsSettings />,
+  groups: <GroupsSettings />,
   cycles: <CyclesSettings />,
   appearance: <AppearanceSettings />,
   "own-keys": <OwnKeysSettings />,

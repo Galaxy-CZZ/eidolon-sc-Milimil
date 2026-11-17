@@ -669,6 +669,7 @@ export const zh = {
       call: "通话",
       "reach-outs": "搭话",
       moments: "朋友圈",
+      groups: "群聊",
       cycles: "周期",
       appearance: "外观",
       "own-keys": "自带密钥",
@@ -806,6 +807,13 @@ export const zh = {
     },
     moments: {
       on: "她们会发朋友圈",
+    },
+    /** 本 fork 的群聊总开关。关掉只停新话题，群和历史都留着。 */
+    groups: {
+      on: "群聊",
+      onHint: "偶像们会不定期在群里抛话题，接着聊下去。",
+      offHint: "已暂停：不再开新话题，群和聊过的记录都留着，随时可以再打开。",
+      summary: "暂停后不再开新话题",
     },
     cycles: {
       on: "她们的周期",

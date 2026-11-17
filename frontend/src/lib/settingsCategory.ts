@@ -20,7 +20,7 @@ import { PROVIDER_LABELS, type Provider } from "@/lib/signIn";
 /** The first level's groups, top to bottom, with a separator between each two. */
 const SETTINGS_GROUPS = [
   ["profile", "memories", "stats"],
-  ["call", "reach-outs", "moments", "cycles", "appearance", "own-keys"],
+  ["call", "reach-outs", "moments", "groups", "cycles", "appearance", "own-keys"],
   ["sign-in", "data-package"],
   ["about"],
 ] as const;
@@ -142,5 +142,8 @@ export function settingsSummaries(values: SettingsValues): Partial<Record<Settin
       owned.length === 0 ? t.ownKeysNone : t.ownKeys(owned.map((service) => copy.ownServices[service]).join(copy.serviceList.separator));
   }
   if (signInMethods) summaries["sign-in"] = signInMethods.map((provider) => PROVIDER_LABELS[provider]).join("、");
+  // 群聊的开关存在它自己的接口上（`/api/groups/all-on`），账户里没有这一项：这里只写一句
+  // 它管什么，开关的当前值在二级页里。
+  summaries.groups = copy.settings.groups.summary;
   return summaries;
 }
