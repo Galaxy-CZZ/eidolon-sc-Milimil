@@ -171,6 +171,11 @@ export const zh = {
     hiddenCount: (count: string) => `已隐藏 ${count} 位`,
     allHidden: "所有角色都隐藏了",
     chooseShown: "选择显示谁",
+    /** 群聊的总开关（列表上方那条）。关掉只是不再开新话题，群和历史都还在。 */
+    groupsOnHint: "群聊开着：偶像们会不定期抛话题",
+    groupsOffHint: "群聊已暂停：不再开新话题，记录都留着",
+    groupsOn: "继续群聊",
+    groupsOff: "暂停群聊",
     /** 页首的铃铛和它打开的公告弹窗（GLOSSARY.md「公告」「未读公告」）。 */
     announcements: "公告",
     announcementsUnread: "公告，有未读",

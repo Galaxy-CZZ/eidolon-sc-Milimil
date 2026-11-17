@@ -98,6 +98,24 @@ export async function setGroupOn(groupId: string, on: boolean): Promise<GroupDet
   );
 }
 
+/** Whether group chat is on for this user at all, as their own switch has it. */
+export async function getGroupsOn(): Promise<boolean> {
+  const read = await json<{ on: boolean }>(await api("/api/groups/all-on"));
+  return read.on;
+}
+
+/** Turn group chat on or off for every group at once; off deletes nothing. */
+export async function setGroupsOn(on: boolean): Promise<boolean> {
+  const wrote = await json<{ on: boolean }>(
+    await api("/api/groups/all-on", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ on }),
+    }),
+  );
+  return wrote.on;
+}
+
 /** Set who is in the group (the people already in it, or others). */
 export async function setGroupMembers(
   groupId: string,

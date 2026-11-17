@@ -180,6 +180,12 @@ CREATE TABLE IF NOT EXISTS group_messages (
     created_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS group_messages_by_topic ON group_messages (topic_id, id);
+-- Users who turned group chat off altogether: no group of theirs raises a topic, and the
+-- page is not polled for one. Nothing is deleted — the history stays, as `moments_off` keeps
+-- the moments.
+CREATE TABLE IF NOT EXISTS groups_off (
+    user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE
+);
 """
 
 
@@ -508,6 +514,39 @@ class Groups:
             (int(on), group_id, user_id),
         )
 
+    async def set_all_on(self, user_id: str, on: bool) -> bool:
+        """Turn group chat on or off for everything of `user_id` at once; whether it is on now.
+
+        Off deletes nothing: every group, its topics and its lines stay exactly as they are,
+        still readable, and only stop raising new ones. On picks the groups up again from when
+        their next topic was already due."""
+        await self._db.write(self._set_all_on, user_id, on, self._clock())
+        return on
+
+    def _set_all_on(
+        self, db: sqlite3.Connection, user_id: str, on: bool, now: datetime
+    ) -> None:
+        if on:
+            db.execute("DELETE FROM groups_off WHERE user_id = ?", (user_id,))
+            # 下次调度就把它们算作到期，不必等原来排的那个时间
+            db.execute(
+                "UPDATE group_chats SET next_topic_at = NULL"
+                " WHERE user_id = ? AND dissolved_at IS NULL",
+                (user_id,),
+            )
+            return
+        db.execute(
+            "INSERT OR IGNORE INTO groups_off (user_id) VALUES (?)", (user_id,)
+        )
+
+    async def all_on(self, user_id: str) -> bool:
+        """Whether group chat is on for `user_id`, as it is by default even with no group."""
+        return await self._db.read(self._read_all_on, user_id)
+
+    def _read_all_on(self, db: sqlite3.Connection, user_id: str) -> bool:
+        row = db.execute("SELECT 1 FROM groups_off WHERE user_id = ?", (user_id,)).fetchone()
+        return row is None
+
     async def set_members(self, user_id: str, group_id: str, ids: Sequence[str]) -> None:
         """Set who is in the group, those that exist; nothing for an empty or unknown list."""
         chosen = [cid for cid in ids if cid in self._characters]
@@ -580,9 +619,13 @@ class Groups:
     def _due(self, db: sqlite3.Connection, now: datetime) -> list[tuple[str, str]]:
         if _at_quiet(now):
             return []
+        # A user who turned group chat off is skipped whole: their groups keep their history
+        # but raise nothing, which is what stops the tokens going out (`groups_off`).
         rows = db.execute(
-            "SELECT id, user_id FROM group_chats WHERE is_on = 1 AND dissolved_at IS NULL"
-            " AND (next_topic_at IS NULL OR next_topic_at <= ?)",
+            "SELECT g.id, g.user_id FROM group_chats g WHERE g.is_on = 1"
+            " AND g.dissolved_at IS NULL"
+            " AND (g.next_topic_at IS NULL OR g.next_topic_at <= ?)"
+            " AND NOT EXISTS (SELECT 1 FROM groups_off o WHERE o.user_id = g.user_id)",
             (now.isoformat(),),
         ).fetchall()
         return [(row[0], row[1]) for row in rows]

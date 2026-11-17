@@ -25,7 +25,13 @@ import { copy } from "@/i18n";
 import type { Character } from "@/lib/api";
 import { showTime } from "@/lib/callTime";
 import { arrange, dayOf, previewOf, type ListRow, type Preview } from "@/lib/conversationList";
-import { createGroup, listGroups, type GroupSummary } from "@/lib/group";
+import {
+  createGroup,
+  listGroups,
+  getGroupsOn,
+  setGroupsOn as postGroupsOn,
+  type GroupSummary,
+} from "@/lib/group";
 import { unreadFrom } from "@/lib/letter";
 import { pin, setShown, unpin } from "@/lib/listPreferences";
 import { cn } from "@/lib/utils";
@@ -62,10 +68,27 @@ export function ConversationList({ selectedId }: { selectedId: string | null }) 
   const [groupName, setGroupName] = useState("");
   const [chosen, setChosen] = useState<string[]>([]);
   const [starting, setStarting] = useState(false);
+  // 群聊的总开关：关掉时所有群都不再开新话题，历史照旧留着、照旧能翻。
+  const [groupsOn, setGroupsOnState] = useState(true);
+  const [turningGroups, setTurningGroups] = useState(false);
 
   const loadGroups = useCallback(() => {
     listGroups().then(setGroups, () => {});
+    getGroupsOn().then(setGroupsOnState, () => {});
   }, []);
+
+  const turnGroups = useCallback(
+    (on: boolean) => {
+      setTurningGroups(true);
+      postGroupsOn(on)
+        .then((now) => {
+          setGroupsOnState(now);
+          loadGroups();
+        }, () => {})
+        .finally(() => setTurningGroups(false));
+    },
+    [loadGroups],
+  );
 
   useEffect(() => {
     loadGroups();
@@ -184,6 +207,21 @@ export function ConversationList({ selectedId }: { selectedId: string | null }) 
           <p className="px-4 py-6 text-center text-preview text-muted-foreground">{t.noMatch}</p>
         ) : (
           <>
+            {groups.length > 0 && (
+              <div className="mx-4 mb-2 flex items-center gap-2 rounded-lg bg-muted/60 px-3 py-2">
+                <span className="min-w-0 flex-1 text-preview text-muted-foreground">
+                  {groupsOn ? t.groupsOnHint : t.groupsOffHint}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={turningGroups}
+                  onClick={() => turnGroups(!groupsOn)}
+                >
+                  {groupsOn ? t.groupsOff : t.groupsOn}
+                </Button>
+              </div>
+            )}
             <ul aria-label={t.title}>
               {ordered.map((item) =>
                 item.kind === "group" ? (

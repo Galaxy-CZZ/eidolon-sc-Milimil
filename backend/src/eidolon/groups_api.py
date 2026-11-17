@@ -55,6 +55,19 @@ def add_group_routes(app: FastAPI, backend: Backend) -> None:
         """The user's groups, newest first, each with a preview of its latest line."""
         return await groups.for_user(user_id)
 
+    @app.get("/api/groups/all-on")
+    async def read_all_on(user_id: UserId) -> dict:
+        """Whether group chat is on for this user at all, as the page's switch shows it."""
+        return {"on": await groups.all_on(user_id)}
+
+    @app.post("/api/groups/all-on")
+    async def set_all_on(body: OnInput, user_id: UserId) -> dict:
+        """Turn group chat on or off for all of this user's groups at once.
+
+        Off stops every group raising new topics — which is where the tokens went — and
+        deletes nothing: the groups, their topics and their lines stay, still readable."""
+        return {"on": await groups.set_all_on(user_id, body.on)}
+
     @app.post("/api/groups", status_code=201)
     async def create_group(body: NewGroup, user_id: UserId) -> dict:
         """Start a group with the chosen members (拉群), its first topic raised right away."""
